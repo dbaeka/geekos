@@ -911,7 +911,7 @@ static int Sys_Pipe(struct Interrupt_State *state) {
     write_fd = add_file_to_descriptor_table(wFile);
 
     if (read_fd < 0 || write_fd < 0)
-        return read_fd || write_fd;
+        return ENOMEM;
 
     if (!Copy_To_User(state->ebx, &read_fd, sizeof(int)) || !Copy_To_User(state->ecx, &write_fd, sizeof(int))) {
         return EINVALID;

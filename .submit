@@ -1,10 +1,9 @@
 # Submit server .submit file for
 #  Course CMSC412
-#  Project project z: RickRoll
 
 courseName=CMSC412
 semester=202001
-projectNumber=project z
+projectNumber=project 0
 courseKey=d0b8ee20d492b2eb
 authentication.type=cas
 baseURL=https://submit.cs.umd.edu:443/spring2020
