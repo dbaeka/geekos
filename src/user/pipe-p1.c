@@ -48,6 +48,6 @@ int main() {
     assert(written_bytes <= -1);
     read_bytes = Read(read_fd, buf, 256);
     assert(read_bytes <= -1);
-
+    Print("\nThe end");
     return 0;
 }

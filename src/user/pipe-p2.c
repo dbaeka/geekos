@@ -76,6 +76,6 @@ int main() {
 
     read_bytes = Read(read_fd, buf, 256);
     assert(read_bytes <= -1);
-
+    Print("\nThe end");
     return 0;
 }

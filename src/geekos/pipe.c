@@ -98,6 +98,22 @@ int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
 }
 
 int Pipe_Close(struct File *f) {
-    TODO_P(PROJECT_PIPE, "Pipe close");
+    struct Pipe *pipe = (struct Pipe *) (f->fsData);
+    if (!pipe->data_buffer)
+        return EINVALID;
+
+    if (f->ops == &Pipe_Read_Ops && pipe->num_readers > 0)
+        pipe->num_readers--;
+    else if (f->ops == &Pipe_Write_Ops && pipe->num_writers > 0)
+        pipe->num_writers--;
+
+    if (pipe->bufferLength && pipe->num_readers)
+        return 0;
+
+    if (!pipe->data_buffer)
+        Free(pipe->data_buffer);
+    if (!pipe->num_readers && !pipe->num_writers)
+        Free(pipe);
+
     return 0;
 }
