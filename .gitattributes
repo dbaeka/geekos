@@ -1,0 +1,4 @@
+# This prevents windows git from converting line endings
+# which sabotages shell scripts executed in the build process.
+* text eol=lf
+*.wav binary

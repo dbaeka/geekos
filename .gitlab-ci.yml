@@ -1,0 +1,27 @@
+# This file is a template, and might need editing before it works on your project.
+# use custom image.
+image: nspring/qemu
+
+build:
+  stage: build
+  # instead of calling g++ directly you can also use some build toolkit like make
+  # install the necessary build tools when needed
+  # before_script: 
+  #   - apt update && apt -y install make autoconf 
+  # nspring altered the following 6.
+  script: 
+    - cd build && make
+  artifacts:
+    paths:
+      - build/diskc.img
+      
+  # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
+  # cache:
+  #   paths:
+  #     - "*.o"
+
+# run tests using the binary built before
+# test:
+#  stage: test
+#  script:
+#    - ./runmytests.sh
