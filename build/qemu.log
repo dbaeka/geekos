@@ -1,0 +1,378 @@
+==184== Memcheck, a memory error detector
+==184== Copyright (C) 2002-2013, and GNU GPL'd, by Julian Seward et al.
+==184== Using Valgrind-3.10.1 and LibVEX; rerun with -h for copyright info
+==184== Command: /usr/bin/qemu-system-i386 -smp 2 -icount 4 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501 -m 512 -debugcon file:output.log -serial stdio -curses -drive file=diskc.img,index=0,format=raw
+==184== Parent PID: 139
+==184== 
+==184== Warning: set address range perms: large range [0x3a044000, 0x5a243000) (defined)
+==184== Warning: client switching stacks?  SP change: 0xffefff228 --> 0x2584c8f8
+==184==          to suppress, use: --max-stackframe=68073236784 or greater
+==184== Warning: client switching stacks?  SP change: 0x2584c898 --> 0xffefff230
+==184==          to suppress, use: --max-stackframe=68073236888 or greater
+==184== Warning: client switching stacks?  SP change: 0xffefffa08 --> 0x2584c8d0
+==184==          to suppress, use: --max-stackframe=68073238840 or greater
+==184==          further instances of this message will not be shown.
+==184== Thread 2:
+==184== Use of uninitialised value of size 8
+==184==    at 0x1441C58D: ???
+==184== 
+==184== Jump to the invalid address stated on the next line
+==184==    at 0x0: ???
+==184==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
+==184== 
+==184== 
+==184== Process terminating with default action of signal 11 (SIGSEGV)
+==184==  Bad permissions for mapped region at address 0x0
+==184==    at 0x0: ???
+==184== 
+==184== HEAP SUMMARY:
+==184==     in use at exit: 123,838,187 bytes in 4,727 blocks
+==184==   total heap usage: 12,036 allocs, 7,309 frees, 171,100,582 bytes allocated
+==184== 
+==184== Thread 1:
+==184== 8 bytes in 1 blocks are definitely lost in loss record 274 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x24C24E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7B7C: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A6382: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 8 bytes in 1 blocks are definitely lost in loss record 275 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x24C24E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7CFA: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A6382: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 16 bytes in 2 blocks are definitely lost in loss record 680 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x24C24E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2925A9: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x292BE8: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2BA9B3: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253063: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2545C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3504CD: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x353476: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x351F5F: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253599: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 845 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484497: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BBAF3: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD23E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C58E6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x49B4A6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A64C0: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 846 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484497: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BBB26: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD23E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C58E6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x49B4A6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A64C0: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 847 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484497: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BBB59: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD23E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C58E6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x49B4A6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A64C0: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 848 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484636: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3505AF: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BB233: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BC45A: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD23E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C58E6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x49B4A6: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 849 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484497: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BBAF3: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD0F4: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEE69: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEFD8: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F035B: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F0230: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 850 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484497: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BBB26: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD0F4: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEE69: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEFD8: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F035B: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F0230: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 851 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484497: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BBB59: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD0F4: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEE69: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEFD8: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F035B: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F0230: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 24 bytes in 1 blocks are definitely lost in loss record 852 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484636: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3505AF: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BB233: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BC45A: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD0F4: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEE69: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEFD8: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 29 bytes in 1 blocks are possibly lost in loss record 863 of 1,749
+==184==    at 0x4C2B0E0: operator new(unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0xC5BC248: std::string::_Rep::_S_create(unsigned long, unsigned long, std::allocator<char> const&) (in /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.19)
+==184==    by 0xC5BD970: char* std::string::_S_construct<char const*>(char const*, char const*, std::allocator<char> const&, std::forward_iterator_tag) (in /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.19)
+==184==    by 0xC5BDD87: std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&) (in /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.19)
+==184==    by 0x540B603: ??? (in /usr/lib/x86_64-linux-gnu/librados.so.2.0.0)
+==184==    by 0x40101D9: call_init.part.0 (dl-init.c:78)
+==184==    by 0x40102C2: call_init (dl-init.c:36)
+==184==    by 0x40102C2: _dl_init (dl-init.c:126)
+==184==    by 0x4001299: ??? (in /lib/x86_64-linux-gnu/ld-2.19.so)
+==184==    by 0x13: ???
+==184==    by 0xFFF00080A: ???
+==184==    by 0xFFF000824: ???
+==184==    by 0xFFF000829: ???
+==184== 
+==184== 66 (16 direct, 50 indirect) bytes in 1 blocks are definitely lost in loss record 1,187 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69261B5: ??? (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x6926728: g_malloc0 (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x491DB7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x353476: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x35214E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x364228: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x277CAA: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2BA9B3: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253063: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2545C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3504CD: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 72 (64 direct, 8 indirect) bytes in 1 blocks are definitely lost in loss record 1,209 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x299966: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x248B80: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2545C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3504CD: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x353476: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x351F5F: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253599: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C716D: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7C3E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A6382: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 80 (64 direct, 16 indirect) bytes in 1 blocks are definitely lost in loss record 1,228 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x299966: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2856F1: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x285CAD: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7214: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7C3E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A6382: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 80 (64 direct, 16 indirect) bytes in 1 blocks are definitely lost in loss record 1,229 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x299966: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2856F1: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x285C21: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7214: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7C3E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A6382: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 80 (64 direct, 16 indirect) bytes in 1 blocks are definitely lost in loss record 1,230 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x299966: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2358C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2545C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3504CD: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x353476: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x351F5F: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253599: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253858: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x237C16: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C724A: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 128 bytes in 1 blocks are definitely lost in loss record 1,318 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x297469: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C7B89: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A6382: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 144 (128 direct, 16 indirect) bytes in 2 blocks are definitely lost in loss record 1,331 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x299966: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x292BC4: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2BA9B3: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253063: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2545C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3504CD: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x353476: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x351F5F: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253599: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253858: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 176 (128 direct, 48 indirect) bytes in 2 blocks are definitely lost in loss record 1,341 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x299966: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x290F3C: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x292BC4: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2BA9B3: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253063: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2545C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3504CD: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x353476: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x351F5F: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x253599: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 288 bytes in 3 blocks are definitely lost in loss record 1,429 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69261B5: ??? (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x6926728: g_malloc0 (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x3429F9: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x343ABB: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A51D6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 368 bytes in 1 blocks are definitely lost in loss record 1,477 of 1,749
+==184==    at 0x4C2CC70: calloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x4012EE4: allocate_dtv (dl-tls.c:296)
+==184==    by 0x4012EE4: _dl_allocate_tls (dl-tls.c:460)
+==184==    by 0xA3EAD92: allocate_stack (allocatestack.c:589)
+==184==    by 0xA3EAD92: pthread_create@@GLIBC_2.2.5 (pthread_create.c:500)
+==184==    by 0x48F91D: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x39054B: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x404ED5: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2545C7: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3504CD: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x353476: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x351F5F: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C4F4D: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C63CE: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 2,032 bytes in 1 blocks are definitely lost in loss record 1,670 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69261B5: ??? (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x6926728: g_malloc0 (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x68F3013: ??? (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x693C434: g_slice_alloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x68F5C34: g_array_sized_new (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x3BD0C4: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEE69: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x2AEFD8: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F035B: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F0230: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3F5238: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 4,096 bytes in 1 blocks are definitely lost in loss record 1,697 of 1,749
+==184==    at 0x4C2CE8E: realloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x692676E: g_realloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x68F5B22: ??? (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x68F6453: g_array_set_size (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x3BCA00: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD23E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C58E6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x49B4A6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A64C0: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== 6,144 bytes in 256 blocks are definitely lost in loss record 1,705 of 1,749
+==184==    at 0x4C2AB80: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x69266D0: g_malloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x488391: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x486683: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x484636: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3505AF: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3534ED: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x223BF1: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x223C65: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x223CCE: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x223F6B: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3891DC: ??? (in /usr/bin/qemu-system-i386)
+==184== 
+==184== 8,192 bytes in 1 blocks are definitely lost in loss record 1,714 of 1,749
+==184==    at 0x4C2CE8E: realloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==184==    by 0x692676E: g_realloc (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x68F5B22: ??? (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x68F6453: g_array_set_size (in /lib/x86_64-linux-gnu/libglib-2.0.so.0.4002.0)
+==184==    by 0x3BBDBF: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3BD23E: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x3C58E6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x49B4A6: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0x1A64C0: ??? (in /usr/bin/qemu-system-i386)
+==184==    by 0xA621F44: (below main) (libc-start.c:287)
+==184== 
+==184== LEAK SUMMARY:
+==184==    definitely lost: 22,000 bytes in 285 blocks
+==184==    indirectly lost: 170 bytes in 9 blocks
+==184==      possibly lost: 29 bytes in 1 blocks
+==184==    still reachable: 123,815,988 bytes in 4,432 blocks
+==184==         suppressed: 0 bytes in 0 blocks
+==184== Reachable blocks (those to which a pointer was found) are not shown.
+==184== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==184== 
+==184== For counts of detected and suppressed errors, rerun with: -v
+==184== Use --track-origins=yes to see where uninitialised values come from
+==184== ERROR SUMMARY: 28 errors from 28 contexts (suppressed: 0 from 0)

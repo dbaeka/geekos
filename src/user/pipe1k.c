@@ -16,27 +16,34 @@
 #include <sema.h>
 #include <string.h>
 #include <fileio.h>
+#include <geekos/errno.h>       /* ensure not /usr/include/errno.h */
 
-int global = 0;
+/* Single-thread pipe test, writes 10K, 1K at a time; then
+ *  reads out the bytes, confirming that they're correct.
+ *  Reads more, ensures EWOULDBLOCK.  Closes the write end,
+ *  ensures that the read end sees EOF.  
+ *
+ *  THIS TEST SHOULD STALL WITH BLOCKING PIPE */
 
 int main() {
-    int n = 0;
-    int child_pid = 0;
-    Print("original\n");
-    child_pid = Fork();
-    global ++;
-    n++;
-  //  global ++;
-    if(child_pid > 0) {
-        Print("parent n=%d, global=%d, child_pid=%d, my_pid=%d\n", n,
-              global, child_pid, Get_PID());
-    } else if(child_pid == 0) {
-        Print("child n=%d, global=%d, child_pid=%d, my_pid=%d\n", n,
-              global, child_pid, Get_PID());
-    } else {
-        Print("fork failed: %s (%d)\n", Get_Error_String(child_pid),
-              child_pid);
+    int i;
+    int read_fd, write_fd;
+    int pipe_retval;
+
+    /* Print("calling pipe"); */
+    for (i = 0; i < 10000; i++) {
+        pipe_retval = Pipe(&read_fd, &write_fd);
+//        if (i >= 4) {
+        Close(read_fd);
+        Close(write_fd);
+//        }
+        if (pipe_retval != 0){
+            Print("iteration %d Error: %d\n", i, pipe_retval);
+            assert(pipe_retval == 0);
+        }
+
     }
+
 
     return 0;
 }

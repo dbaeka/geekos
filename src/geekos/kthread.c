@@ -133,7 +133,7 @@ static void Init_Thread(struct Kernel_Thread *kthread, void *stackPage,
  * Create a new raw thread object.
  * Returns a null pointer if there isn't enough memory.
  */
-static struct Kernel_Thread *Create_Thread(int priority, bool detached) {
+struct Kernel_Thread *Create_Thread(int priority, bool detached) {
     struct Kernel_Thread *kthread;
     void *stackPage = 0;
 
@@ -439,6 +439,8 @@ static void Setup_Kernel_Thread(struct Kernel_Thread *kthread,
     /* allow it to run on any core */
     kthread->affinity = -1;
 }
+
+
 
 
 /*

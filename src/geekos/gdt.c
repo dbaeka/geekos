@@ -116,7 +116,7 @@ void Init_GDT(int cpuid) {
     KASSERT(sizeof(struct Segment_Descriptor) == 8);
 
     if(cpuid == 0) {            /* Clear out entries. */
-        for(i = 0; i < NUM_GDT_ENTRIES; ++i) {
+        for(i = 0; i < NUM_GDT_ENTRIES; ++i) { // DEL: 32 Entries
             desc = &s_GDT[cpuid][i];
             Init_Null_Segment_Descriptor(desc);
             desc->avail = 1;

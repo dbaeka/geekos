@@ -225,7 +225,7 @@ GENERRS := $(PERL) $(PROJECT_ROOT)/scripts/generrs
 
 # Flags used for all C source files
 # GENERAL_OPTS := -O -Wall $(EXTRA_C_OPTS)   # -O may cause a failure to startup.
-OPTIMIZE := -O2
+OPTIMIZE := #-O2
 GENERAL_OPTS := $(OPTIMIZE) -Werror -Wall $(EXTRA_C_OPTS)
 CC_GENERAL_OPTS ?= $(GENERAL_OPTS) -W -Wwrite-strings -fno-stack-protector -Wno-unused-parameter -Wno-unused-function # -Wno-unused
 

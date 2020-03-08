@@ -113,8 +113,8 @@ void Hardware_Shutdown() {
 }
 
 void Main(struct Boot_Info *bootInfo) {
-    Init_BSS();
-    Init_Screen();
+    Init_BSS(); // Zeros out the BSS (global variables area) of the kernel
+    Init_Screen(); //Reset Screen
     Init_Mem(bootInfo);
     Init_CRC32();
     TODO_P(PROJECT_PERCPU, "Initialize PERCPU");

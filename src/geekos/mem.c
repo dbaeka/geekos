@@ -128,8 +128,8 @@ void Init_Mem(struct Boot_Info *bootInfo) {
         bootInfo->memSizeKB += 0x1000;
     }
 
-    ulong_t numPages = bootInfo->memSizeKB >> 2;
-    ulong_t endOfMem = numPages * PAGE_SIZE;
+    ulong_t numPages = bootInfo->memSizeKB >> 2; // DEL: Divide by 4KB
+    ulong_t endOfMem = numPages * PAGE_SIZE; // DEL: Multiply by 4096
     unsigned numPageListBytes = sizeof(struct Page) * numPages;
     ulong_t pageListAddr;
     ulong_t kernEnd;

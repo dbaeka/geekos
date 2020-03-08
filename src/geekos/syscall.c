@@ -36,6 +36,19 @@
 
 extern Spin_Lock_t kthreadLock;
 
+extern struct Mutex s_vfsLock;
+
+extern struct User_Context *Create_User_Context(ulong_t size);
+
+extern void Destroy_User_Context(struct User_Context *userContext);
+
+extern struct Kernel_Thread *Create_Thread(int priority, bool detached);
+
+extern void Setup_User_Thread(struct Kernel_Thread *kthread, struct User_Context *userContext);
+
+extern struct All_Thread_List s_allThreadList;
+
+extern void Detach_Thread(struct Kernel_Thread *kthread);
 /*
  * Allocate a buffer for a user string, and
  * copy it into kernel space.
@@ -99,6 +112,20 @@ __attribute__ ((unused))) {
  *   Never returns to user mode!
  */
 static int Sys_Exit(struct Interrupt_State *state) {
+    struct Kernel_Thread *current = get_current_thread(0);      /* interrupts disabled, may use fast */
+    struct Kernel_Thread *result = 0;
+    Spin_Lock(&kthreadLock);
+    result = Get_Front_Of_All_Thread_List(&s_allThreadList);
+    while (result != 0) {
+        if (current == result->owner && result->refCount > 1) {
+            Spin_Unlock(&kthreadLock);
+            Detach_Thread(result);
+            Spin_Lock(&kthreadLock);
+        }
+        result = Get_Next_In_All_Thread_List(result);
+    }
+    Spin_Unlock(&kthreadLock);
+
     Exit(state->ebx);
     /* We will never get here. */
 }
@@ -312,7 +339,6 @@ static int Sys_GetPID(struct Interrupt_State *state) {
 }
 
 
-extern struct All_Thread_List s_allThreadList;
 extern struct Thread_Queue s_runQueue;
 
 
@@ -569,8 +595,7 @@ static int Sys_Close(struct Interrupt_State *state) {
     if (CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
         Close(CURRENT_THREAD->userContext->
                 file_descriptor_table[state->ebx]);
-        CURRENT_THREAD->userContext->file_descriptor_table[state->ebx] =
-                0;
+        CURRENT_THREAD->userContext->file_descriptor_table[state->ebx] = 0;
         return 0;
     } else {
         // Print("unable to close fd index %d, nothing there.\n", state->ebx);
@@ -673,6 +698,7 @@ static int Sys_Read(struct Interrupt_State *state) {
                 bytes_read = EINVALID;
             }
         }
+//        if (data_buffer)
         Free(data_buffer);
         return bytes_read;
     } else {
@@ -719,6 +745,7 @@ static int Sys_Write(struct Interrupt_State *state) {
             return ENOMEM;
         }
         if (!Copy_From_User(data_buffer, state->ecx, state->edx)) {
+//            if (data_buffer)
             Free(data_buffer);
             return EINVALID;
         }
@@ -726,6 +753,7 @@ static int Sys_Write(struct Interrupt_State *state) {
                 Write(CURRENT_THREAD->userContext->
                               file_descriptor_table[state->ebx], data_buffer,
                       state->edx);
+//        if (data_buffer)
         Free(data_buffer);
         return bytes_written;
     } else {
@@ -905,7 +933,8 @@ static int Sys_Pipe(struct Interrupt_State *state) {
 
     int rc = 0, read_fd, write_fd;
     struct File *rFile = NULL, *wFile = NULL;
-
+//    struct Kernel_Thread *process = CURRENT_THREAD;
+//    KASSERT(process);
     rc = Pipe_Create(&rFile, &wFile);
     read_fd = add_file_to_descriptor_table(rFile);
     write_fd = add_file_to_descriptor_table(wFile);
@@ -917,14 +946,68 @@ static int Sys_Pipe(struct Interrupt_State *state) {
         return EINVALID;
 
     }
-
+//    Mutex_Lock(&s_vfsLock);
+//    rFile->refCount = wFile->refCount = 1;
+//    Mutex_Unlock(&s_vfsLock);
     return rc;
 }
 
 
 static int Sys_Fork(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FORK, "Fork system call");
-    return EUNSUPPORTED;
+    KASSERT(state);
+
+    int i;
+    struct User_Context *userContext = 0;
+    struct Kernel_Thread *process = 0;
+
+    struct Kernel_Thread *parent = CURRENT_THREAD;
+    struct User_Context *parentUserContext = parent->userContext;
+
+    userContext = Create_User_Context(parentUserContext->size);
+    if (userContext == 0)
+        return ENOMEM;
+    memcpy(userContext->memory, parentUserContext->memory, parentUserContext->size);
+    userContext->entryAddr = parentUserContext->entryAddr;
+    userContext->argBlockAddr = parentUserContext->argBlockAddr;
+    userContext->stackPointerAddr = parentUserContext->stackPointerAddr;
+
+    strncpy(userContext->name, parentUserContext->name, MAX_PROC_NAME_SZB);
+    userContext->name[MAX_PROC_NAME_SZB - 1] = '\0';
+
+    for (i = 0; i < USER_MAX_FILES; i++)
+        if (parentUserContext->file_descriptor_table[i]) {
+            userContext->file_descriptor_table[i] = parentUserContext->file_descriptor_table[i];
+            Mutex_Lock(&s_vfsLock);
+            userContext->file_descriptor_table[i]->refCount++;
+            Mutex_Unlock(&s_vfsLock);
+        }
+
+    /* Start the process! */
+    process = Create_Thread(PRIORITY_USER, false);
+    if (process != 0) {
+        /* Set up the thread, and put it on the run queue */
+        if (Is_User_Interrupt(state)) {
+            Attach_User_Context(process, userContext);
+            int sizeStack = (PAGE_SIZE + (ulong_t) parent->stackPage) - (ulong_t) parent->esp;
+            process->esp -= sizeStack;
+
+            struct User_Interrupt_State *pstate = (struct User_Interrupt_State *) state;
+            struct User_Interrupt_State *ustate = (struct User_Interrupt_State *) process->esp;
+
+            memcpy(ustate, pstate, sizeof(struct User_Interrupt_State));
+
+            ustate->state.eax = 0;
+            process->affinity = -1;
+            Make_Runnable_Atomic(process);
+        }
+        return process->pid;
+    } else {
+        Destroy_User_Context(userContext);
+        return ENOMEM;
+    }
+
+
+//    return rc;
 }
 
 /* 
@@ -937,8 +1020,72 @@ static int Sys_Fork(struct Interrupt_State *state) {
  * Returns: doesn't if successful, error code (< 0) otherwise
  */
 static int Sys_Execl(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FORK, "Execl system call");
-    return EUNSUPPORTED;
+//    TODO_P(PROJECT_FORK, "Execl system call");
+//    return EUNSUPPORTED;
+
+    KASSERT(state);
+    KASSERT(state->ebx);
+    KASSERT(state->ecx);
+    KASSERT(state->edx);
+    KASSERT(state->esi);
+
+    int rc = 0, rc2 = 0, rc3 = 0, i;
+    char *exeFileData = 0;
+    ulong_t exeFileLength;
+
+    struct Exe_Format exeFormat;
+    struct User_Context *newContext = 0;
+    struct Kernel_Thread *process = CURRENT_THREAD;
+    struct User_Context *oldContext = CURRENT_THREAD->userContext;
+
+    char *exeString, *cmdString;
+    rc = get_path_from_registers(state->ebx, state->ecx, &exeString);
+    if (rc != 0)
+        return ENOMEM;
+    rc = get_path_from_registers(state->edx, state->esi, &cmdString);
+    if (rc != 0)
+        return ENOMEM;
+
+    if ((rc = Read_Fully(exeString, (void **) &exeFileData, &exeFileLength)) != 0
+        || (rc2 = Parse_ELF_Executable(exeFileData, exeFileLength, &exeFormat)) != 0 ||
+        (rc3 = Load_User_Program(exeFileData, exeFileLength, &exeFormat, cmdString, &newContext)) != 0) {
+        rc |= rc2 | rc3;        /* since all are zero, this sets rc to whichever one is nonzero.
+                                   breakpoint here if you need to know which one failed. */
+        if (exeFileData != 0)
+            Free(exeFileData);
+        if (newContext != 0)
+            Destroy_User_Context(newContext);
+        return rc;
+    }
+
+    if (oldContext == 0)
+        return EINVALID;
+
+    for (i = 0; i < USER_MAX_FILES; i++)
+        if (oldContext->file_descriptor_table[i])
+            newContext->file_descriptor_table[i] = oldContext->file_descriptor_table[i];
+
+    // Get rid of old user Context
+    Detach_User_Context(process);
+
+    /*
+    * User program has been loaded, so we can free the
+    * executable file data now.
+    */
+    Free(exeFileData);
+    exeFileData = 0;
+
+    strncpy(newContext->name, exeString, MAX_PROC_NAME_SZB);
+    newContext->name[MAX_PROC_NAME_SZB - 1] = '\0';
+
+    if (process != 0) {
+        /* Set up the thread, and put it on the run queue */
+        KASSERT(process->stackPage);
+        process->esp = ((ulong_t) process->stackPage) + PAGE_SIZE;
+        Setup_User_Thread(process, newContext);
+        //  Make_Runnable_Atomic(process);
+    }
+    return rc;
 }
 
 /* 
@@ -1153,3 +1300,4 @@ const Syscall g_syscallTable[] = {
  */
 const unsigned int g_numSyscalls =
         sizeof(g_syscallTable) / sizeof(Syscall);
+

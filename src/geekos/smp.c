@@ -467,7 +467,7 @@ void Init_SMP(void) {
     for(i = 0; i < CPU_Count; i++) {
         if(!Processor[i].Is_Bootstrap_CPU) {
             // create an initial stack page for core.  Stacks grow down so this is really the end of the stack
-            // assembly code adds 4096 to the when loading esp
+            // assembly code adds 4096 to this when loading esp
             void *ptr;
             ptr = Alloc_Page();
             CPUs[i].stack = ptr;
