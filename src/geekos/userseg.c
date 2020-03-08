@@ -43,7 +43,7 @@ int userDebug = 0;
 void *User_To_Kernel(struct User_Context *userContext, ulong_t userPtr) {
     uchar_t *userBase = (uchar_t *) userContext->memory;
 
-    return (void *)(userBase + userPtr);
+    return (void *) (userBase + userPtr);
 }
 
 /*
@@ -55,18 +55,18 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
 
     /* Size must be a multiple of the page size */
     size = Round_Up_To_Page(size);
-    if(userDebug)
+    if (userDebug)
         Print("Size of user memory == %lu (%lx) (%lu pages)\n", size,
               size, size / PAGE_SIZE);
 
     /* Allocate memory for the user context */
-    context = (struct User_Context *)Malloc(sizeof(*context));
-    if(context != 0) {
+    context = (struct User_Context *) Malloc(sizeof(*context));
+    if (context != 0) {
         memset(context, 0, sizeof(struct User_Context));
         context->memory = Malloc(size);
     }
 
-    if(context == 0 || context->memory == 0)
+    if (context == 0 || context->memory == 0)
         goto fail;
 
     /*
@@ -79,9 +79,9 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
 
     /* Allocate an LDT descriptor for the user context */
     context->ldtDescriptor = Allocate_Segment_Descriptor();
-    if(context->ldtDescriptor == 0)
+    if (context->ldtDescriptor == 0)
         goto fail;
-    if(userDebug)
+    if (userDebug)
         Print("Allocated descriptor %d for LDT\n",
               Get_Descriptor_Index(context->ldtDescriptor));
     Init_LDT_Descriptor(context->ldtDescriptor, context->ldt,
@@ -102,14 +102,26 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     /* Nobody is using this user context yet */
     context->refCount = 0;
 
+    int i;
+    for (i = 0; i < MAXSIG + 1; i++) {
+        if (i == 0)
+            context->signalTable[i] = 0;
+        else
+            context->signalTable[i] = SIG_DFL;
+        context->receivedSignals[i] = false;
+    }
+
+    context->signal[SIGCHLD] = SIG_IGN;
+
+    context->trampFunction = 0;
 
     /* Success! */
     return context;
 
-  fail:
+    fail:
     /* We failed; release any allocated memory */
-    if(context != 0) {
-        if(context->memory != 0)
+    if (context != 0) {
+        if (context->memory != 0)
             Free(context->memory);
         Free(context);
     }
@@ -117,17 +129,17 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     return 0;
 }
 
-bool Validate_User_Memory(struct User_Context * userContext,
+bool Validate_User_Memory(struct User_Context *userContext,
                           ulong_t userAddr, ulong_t bufSize,
                           int for_writing) {
     ulong_t avail;
     for_writing = for_writing;  /* avoid warning */
 
-    if(userAddr >= userContext->size)
+    if (userAddr >= userContext->size)
         return false;
 
     avail = userContext->size - userAddr;
-    if(bufSize > avail)
+    if (bufSize > avail)
         return false;
 
     return true;
@@ -171,7 +183,7 @@ void Destroy_User_Context(struct User_Context *userContext) {
  *   0 if successful, or an error code (< 0) if unsuccessful
  */
 int Load_User_Program(char *exeFileData, ulong_t exeFileLength
-                      __attribute__ ((unused)),
+__attribute__ ((unused)),
                       struct Exe_Format *exeFormat, const char *command,
                       struct User_Context **pUserContext) {
     int i;
@@ -182,11 +194,11 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength
     struct User_Context *userContext = 0;
 
     /* Find maximum virtual address */
-    for(i = 0; i < exeFormat->numSegments; ++i) {
+    for (i = 0; i < exeFormat->numSegments; ++i) {
         struct Exe_Segment *segment = &exeFormat->segmentList[i];
         ulong_t topva = segment->startAddress + segment->sizeInMemory;  /* FIXME: range check */
 
-        if(topva > maxva)
+        if (topva > maxva)
             maxva = topva;
     }
 
@@ -203,11 +215,11 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength
 
     /* Create User_Context */
     userContext = Create_User_Context(size);
-    if(userContext == 0)
+    if (userContext == 0)
         return -1;
 
     /* Load segment data into memory */
-    for(i = 0; i < exeFormat->numSegments; ++i) {
+    for (i = 0; i < exeFormat->numSegments; ++i) {
         struct Exe_Segment *segment = &exeFormat->segmentList[i];
 
         memcpy(userContext->memory + segment->startAddress,
@@ -250,7 +262,7 @@ bool Copy_From_User(void *destInKernel, ulong_t srcInUser,
                     ulong_t bufSize) {
     struct User_Context *current = CURRENT_THREAD->userContext;
 
-    if(!Validate_User_Memory(current, srcInUser, bufSize, VUM_READING))
+    if (!Validate_User_Memory(current, srcInUser, bufSize, VUM_READING))
         return false;
     memcpy(destInKernel, User_To_Kernel(current, srcInUser), bufSize);
 
@@ -273,7 +285,7 @@ bool Copy_To_User(ulong_t destInUser, const void *srcInKernel,
                   ulong_t bufSize) {
     struct User_Context *current = CURRENT_THREAD->userContext;
 
-    if(!Validate_User_Memory(current, destInUser, bufSize, VUM_WRITING))
+    if (!Validate_User_Memory(current, destInUser, bufSize, VUM_WRITING))
         return false;
     memcpy(User_To_Kernel(current, destInUser), srcInKernel, bufSize);
 
@@ -297,5 +309,5 @@ void Switch_To_Address_Space(struct User_Context *userContext) {
     /* Switch to the LDT of the new user context */
     ldtSelector = userContext->ldtSelector;
     __asm__ __volatile__("lldt %0"::"a"(ldtSelector)
-        );
+    );
 }

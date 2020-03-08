@@ -53,9 +53,9 @@ extern void Detach_Thread(struct Kernel_Thread *kthread);
  * Allocate a buffer for a user string, and
  * copy it into kernel space.
  */
-/* "extern" to note that it's used by semaphore and networking system calls, defined 
+/* "extern" to note that it's used by semaphore and networking system calls, defined
    in another file */
-/* need not be called with interrupts disabled, since it should move data from 
+/* need not be called with interrupts disabled, since it should move data from
    user space (which is blocked in the kernel) into a newly-allocated buffer */
 extern int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen,
                             char **pStr) {
@@ -171,7 +171,7 @@ static int Sys_PrintString(struct Interrupt_State *state) {
         /* in reality, one wouldn't abort on this sort of thing.  but we do that
            just in case it helps track down a bug that much sooner */
         /* length is greater than zero, so someone thought there was a string here,
-           but the first character is null, so they were either wrong or something 
+           but the first character is null, so they were either wrong or something
            poor occurred. */
         if (!buf[0]) {
             Dump_Interrupt_State(state);
@@ -366,7 +366,20 @@ static int Sys_PS(struct Interrupt_State *state) {
  * Returns: 0 on success or error code (< 0) on error
  */
 static int Sys_Kill(struct Interrupt_State *state) {
-    TODO_P(PROJECT_SIGNALS, "Sys_Kill system call");
+    KASSERT(state);
+    KASSERT(state->ecx);
+    KASSERT(state->ebx);
+
+    KASSERT(Interrupts_Enabled());
+
+    uint_t signal = state->ecx, pid = state->ebx;
+
+    if (!IS_SIGNUM(signal))
+        return EINVALID;
+
+    struct Kernel_Thread *target = Lookup_Thread(pid, true);
+    target->userContext->receivedSignals[signal] = true;
+
     return 0;
 }
 
@@ -378,7 +391,22 @@ static int Sys_Kill(struct Interrupt_State *state) {
  * Returns: 0 on success or error code (< 0) on error
  */
 static int Sys_Signal(struct Interrupt_State *state) {
-    TODO_P(PROJECT_SIGNALS, "Sys_Signal system call");
+    KASSERT(state);
+    KASSERT(state->ecx);
+    KASSERT(state->ebx);
+
+    KASSERT(Interrupts_Enabled());
+
+    uint_t signal = state->ecx, signal_handler = state->ebx;
+
+    if (signal == SIGKILL)
+        return EINVALID;
+
+    if (!IS_SIGNUM(signal))
+        return EINVALID;
+
+    struct User_Context *context = CURRENT_THREAD->userContext;
+    context->signalTable[signal] = (void *) signal_handler;
     return 0;
 }
 
@@ -394,8 +422,14 @@ static int Sys_Signal(struct Interrupt_State *state) {
  * Returns: 0 on success or error code (< 0) on error
  */
 static int Sys_RegDeliver(struct Interrupt_State *state) {
+    KASSERT(state);
+    KASSERT(state->ebx);
+
+    KASSERT(Interrupts_Enabled());
+
+    struct User_Context *context = CURRENT_THREAD->userContext;
+    context->trampFunction = (void *) state->ebx;
     return 0;
-    TODO_P(PROJECT_SIGNALS, "Sys_RegDeliver system call");
 }
 
 /*
@@ -406,8 +440,8 @@ static int Sys_RegDeliver(struct Interrupt_State *state) {
  * Returns: not expected to "return"
  */
 static int Sys_ReturnSignal(struct Interrupt_State *state) {
-    TODO_P(PROJECT_SIGNALS, "Sys_ReturnSignal system call");
-    return EUNSUPPORTED;
+    KASSERT(state);
+    return state->eax;
 }
 
 /*
@@ -418,8 +452,38 @@ static int Sys_ReturnSignal(struct Interrupt_State *state) {
  */
 static int Sys_WaitNoPID(struct Interrupt_State *state) {
     /* not required for Spring 2017 */
-    TODO_P(PROJECT_SIGNALS, "Sys_WaitNoPID system call");
-    return EUNSUPPORTED;
+    int exitCode;
+    struct Kernel_Thread *kthread;
+
+    kthread = Lookup_Thread(state->ebx, 0);
+    if (kthread == 0) {
+        // can't find the process id passed
+        exitCode = EINVALID;
+        goto finish;
+    }
+
+    if (kthread->detached) {
+        // can't wait on a detached process
+        exitCode = EINVALID;
+        goto finish;
+    }
+    exitCode = Join(kthread);
+    struct Kernel_Thread *current = get_current_thread(0);      /* interrupts disabled, may use fast */
+    struct Kernel_Thread *result = 0;
+    Spin_Lock(&kthreadLock);
+    result = Get_Front_Of_All_Thread_List(&s_allThreadList);
+    while (result != 0) {
+        if (current == result->owner && result->refCount > 1) {
+            Spin_Unlock(&kthreadLock);
+            Detach_Thread(result);
+            Spin_Lock(&kthreadLock);
+        }
+        result = Get_Next_In_All_Thread_List(result);
+    }
+    Spin_Unlock(&kthreadLock);
+
+finish:
+    return exitCode;
 }
 
 /*
@@ -620,9 +684,9 @@ static int Sys_Delete(struct Interrupt_State *state) {
 /*
  * Rename a file.
  * Params:
- *   state->ebx - address of user string containing old path 
+ *   state->ebx - address of user string containing old path
  *   state->ecx - length of old path
- *   state->edx - address of user string containing new path 
+ *   state->edx - address of user string containing new path
  *   state->esix - length of new path
  *
  * Returns: 0 if successful, error code (< 0) if unsuccessful
@@ -635,9 +699,9 @@ static int Sys_Rename(struct Interrupt_State *state) {
 /*
  * Link a file.
  * Params:
- *   state->ebx - address of user string containing old path 
+ *   state->ebx - address of user string containing old path
  *   state->ecx - length of old path
- *   state->edx - address of user string containing new path 
+ *   state->edx - address of user string containing new path
  *   state->esix - length of new path
  *
  * Returns: 0 if successful, error code (< 0) if unsuccessful
@@ -650,9 +714,9 @@ static int Sys_Link(struct Interrupt_State *state) {
 /*
  * Link a file.
  * Params:
- *   state->ebx - address of user string containing old path 
+ *   state->ebx - address of user string containing old path
  *   state->ecx - length of old path
- *   state->edx - address of user string containing new path 
+ *   state->edx - address of user string containing new path
  *   state->esix - length of new path
  *
  * Returns: 0 if successful, error code (< 0) if unsuccessful
@@ -830,7 +894,7 @@ static int Sys_Sync(struct Interrupt_State *state) {
  * Params:
  *   state->ebx - address of user string containing device to format
  *   state->ecx - length of device name string
- *   state->edx - address of user string containing filesystem type 
+ *   state->edx - address of user string containing filesystem type
  *   state->esi - length of filesystem type string
 
  * Returns: 0 if successful, error code (< 0) if unsuccessful
@@ -918,7 +982,7 @@ static int Sys_PlaySoundFile(struct Interrupt_State *state) {
     return 0;
 }
 
-/* 
+/*
  * Create a pipe.
  * Params:
  *   state->ebx - address of file descriptor for the read side
@@ -1010,7 +1074,7 @@ static int Sys_Fork(struct Interrupt_State *state) {
 //    return rc;
 }
 
-/* 
+/*
  * Exec a new program in this process.
  * Params:
  *   state->ebx - user address of name of executable
@@ -1088,8 +1152,8 @@ static int Sys_Execl(struct Interrupt_State *state) {
     return rc;
 }
 
-/* 
- * The following is a crude trigger for dumping kernel 
+/*
+ * The following is a crude trigger for dumping kernel
  * statistics to the console output.  It is not generally
  * how one should output kernel statistics to user space.
  */
@@ -1100,7 +1164,7 @@ static int Sys_Diagnostic(struct Interrupt_State *state) {
     return 0;
 }
 
-/* 
+/*
  * Retrieve disk properties
  * Params:
  *   state->ebx - path name to mounted file system
@@ -1122,7 +1186,7 @@ static int Sys_Disk_Properties(struct Interrupt_State *state) {
     return 0;
 }
 
-/* 
+/*
  * Set Resource Limits
  * Params:
  *   state->ebx - resource to limit
@@ -1135,7 +1199,7 @@ static int Sys_Limit(struct Interrupt_State *state) {
 }
 
 
-/* 
+/*
  * Set Processor Affinity
  * Params:
  *   state->ebx - pid
@@ -1147,7 +1211,7 @@ static int Sys_Set_Affinity(struct Interrupt_State *state) {
 }
 
 
-/* 
+/*
  * Get Processor Affinity
  * Params:
  *   state->ebx - pid
@@ -1161,8 +1225,8 @@ static int Sys_Get_Affinity(struct Interrupt_State *state) {
  * Sys_Clone - create a new LWP, shares text and heap with parent
  *
  * Params:
- *   state->ebx - address of thread function to run 
- *   state->ecx - address of top of child's stack 
+ *   state->ebx - address of thread function to run
+ *   state->ecx - address of top of child's stack
  * Returns: pid for child on sucess or EINVALID for error
  */
 static int Sys_Clone(struct Interrupt_State *state) {

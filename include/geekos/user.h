@@ -103,10 +103,13 @@ struct User_Context {
 
     char name[MAX_PROC_NAME_SZB];
 
-
-
-
     mappedRegion_t *mappedRegions;
+
+    void *signalTable[MAXSIG+1];
+
+    bool receivedSignals[MAXSIG+1];
+
+    void *trampFunction;
 };
 
 
