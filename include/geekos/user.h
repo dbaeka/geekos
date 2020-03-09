@@ -109,6 +109,10 @@ struct User_Context {
 
     bool receivedSignals[MAXSIG+1];
 
+    bool busy;
+
+    int currentSignal;
+
     void *trampFunction;
 };
 

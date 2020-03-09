@@ -114,6 +114,7 @@ static void Init_Thread(struct Kernel_Thread *kthread, void *stackPage,
     kthread->owner = owner;
     kthread->affinity = AFFINITY_ANY_CORE;
     kthread->totalTime = 0;
+    kthread->waited_on = false;
 
     /*
      * The thread has an implicit self-reference and 
@@ -784,6 +785,7 @@ int Join(struct Kernel_Thread *kthread) {
     /* It is only legal for the owner to join */
     KASSERT(kthread->owner == CURRENT_THREAD);
 
+    kthread->waited_on = true;
     /* Wait for it to die */
     while (kthread->alive) {
         Wait(&kthread->joinQueue);
@@ -795,7 +797,6 @@ int Join(struct Kernel_Thread *kthread) {
     /* once joined we are effectively detached - prevents Exit from this thread trying to double detach */
     /* do this before detach since deatch can free the thread */
     kthread->detached = 1;
-
 
     Enable_Interrupts();
 

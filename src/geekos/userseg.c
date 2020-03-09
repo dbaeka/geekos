@@ -111,9 +111,13 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
         context->receivedSignals[i] = false;
     }
 
-    context->signal[SIGCHLD] = SIG_IGN;
+    context->signalTable[SIGCHLD] = SIG_IGN;
 
     context->trampFunction = 0;
+
+    context->busy = false;
+
+    context->currentSignal = 0;
 
     /* Success! */
     return context;

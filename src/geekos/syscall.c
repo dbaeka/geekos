@@ -122,6 +122,11 @@ static int Sys_Exit(struct Interrupt_State *state) {
             Detach_Thread(result);
             Spin_Lock(&kthreadLock);
         }
+        if (current->owner != current && !current->waited_on) {
+            struct Kernel_Thread *parent = current->owner;
+            if (parent != 0 && parent->alive)
+                parent->userContext->receivedSignals[SIGCHLD] = true;
+        }
         result = Get_Next_In_All_Thread_List(result);
     }
     Spin_Unlock(&kthreadLock);
@@ -367,8 +372,6 @@ static int Sys_PS(struct Interrupt_State *state) {
  */
 static int Sys_Kill(struct Interrupt_State *state) {
     KASSERT(state);
-    KASSERT(state->ecx);
-    KASSERT(state->ebx);
 
     KASSERT(Interrupts_Enabled());
 
@@ -378,8 +381,14 @@ static int Sys_Kill(struct Interrupt_State *state) {
         return EINVALID;
 
     struct Kernel_Thread *target = Lookup_Thread(pid, true);
-    target->userContext->receivedSignals[signal] = true;
+    if (target == 0)
+        return EINVALID;
 
+    struct User_Context *context = target->userContext;
+    if (context == 0)
+        return EINVALID;
+
+    target->userContext->receivedSignals[signal] = true;
     return 0;
 }
 
@@ -392,8 +401,6 @@ static int Sys_Kill(struct Interrupt_State *state) {
  */
 static int Sys_Signal(struct Interrupt_State *state) {
     KASSERT(state);
-    KASSERT(state->ecx);
-    KASSERT(state->ebx);
 
     KASSERT(Interrupts_Enabled());
 
@@ -405,9 +412,16 @@ static int Sys_Signal(struct Interrupt_State *state) {
     if (!IS_SIGNUM(signal))
         return EINVALID;
 
+    if (signal_handler == 0)
+        return EINVALID;
+
     struct User_Context *context = CURRENT_THREAD->userContext;
+    if (context == 0)
+        return EINVALID;
+
     context->signalTable[signal] = (void *) signal_handler;
     return 0;
+
 }
 
 /*
@@ -423,13 +437,15 @@ static int Sys_Signal(struct Interrupt_State *state) {
  */
 static int Sys_RegDeliver(struct Interrupt_State *state) {
     KASSERT(state);
-    KASSERT(state->ebx);
 
     KASSERT(Interrupts_Enabled());
 
     struct User_Context *context = CURRENT_THREAD->userContext;
-    context->trampFunction = (void *) state->ebx;
-    return 0;
+    if (context != 0) {
+        context->trampFunction = (void *) state->ebx;
+        return 0;
+    }
+    return EINVALID;
 }
 
 /*
@@ -441,6 +457,11 @@ static int Sys_RegDeliver(struct Interrupt_State *state) {
  */
 static int Sys_ReturnSignal(struct Interrupt_State *state) {
     KASSERT(state);
+
+    KASSERT(Interrupts_Enabled());
+    struct Kernel_Thread *current = CURRENT_THREAD;
+
+    Complete_Handler(current, state);
     return state->eax;
 }
 
@@ -452,38 +473,23 @@ static int Sys_ReturnSignal(struct Interrupt_State *state) {
  */
 static int Sys_WaitNoPID(struct Interrupt_State *state) {
     /* not required for Spring 2017 */
-    int exitCode;
-    struct Kernel_Thread *kthread;
+    KASSERT(state);
 
-    kthread = Lookup_Thread(state->ebx, 0);
-    if (kthread == 0) {
-        // can't find the process id passed
-        exitCode = EINVALID;
-        goto finish;
-    }
-
-    if (kthread->detached) {
-        // can't wait on a detached process
-        exitCode = EINVALID;
-        goto finish;
-    }
-    exitCode = Join(kthread);
     struct Kernel_Thread *current = get_current_thread(0);      /* interrupts disabled, may use fast */
     struct Kernel_Thread *result = 0;
     Spin_Lock(&kthreadLock);
     result = Get_Front_Of_All_Thread_List(&s_allThreadList);
     while (result != 0) {
-        if (current == result->owner && result->refCount > 1) {
+        if (current == result->owner && !result->alive && !result->detached) {
             Spin_Unlock(&kthreadLock);
             Detach_Thread(result);
-            Spin_Lock(&kthreadLock);
+            if (!Copy_To_User(state->ebx, &result->exitCode, sizeof(int)))
+                return EUNSPECIFIED;
+            return result->pid;
         }
         result = Get_Next_In_All_Thread_List(result);
     }
-    Spin_Unlock(&kthreadLock);
-
-finish:
-    return exitCode;
+    return ENOZOMBIES;
 }
 
 /*
@@ -1034,6 +1040,10 @@ static int Sys_Fork(struct Interrupt_State *state) {
     userContext->entryAddr = parentUserContext->entryAddr;
     userContext->argBlockAddr = parentUserContext->argBlockAddr;
     userContext->stackPointerAddr = parentUserContext->stackPointerAddr;
+    userContext->trampFunction = parentUserContext->trampFunction;
+
+    for (i = 0; i < MAXSIG + 1; i++)
+        userContext->signalTable[i] = parentUserContext->signalTable[i];
 
     strncpy(userContext->name, parentUserContext->name, MAX_PROC_NAME_SZB);
     userContext->name[MAX_PROC_NAME_SZB - 1] = '\0';

@@ -17,6 +17,9 @@
 #include <geekos/projects.h>
 #include <geekos/int.h>
 #include <geekos/vfs.h>
+#include <geekos/signal.h>
+#include <geekos/kthread.h>
+#include <geekos/user.h>
 
 extern struct Mutex s_vfsLock;
 
@@ -82,9 +85,12 @@ int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
 
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     struct Pipe *pipe = (struct Pipe *) (f->fsData);
-//    Mutex_Lock(&s_vfsLock);
-    if (!pipe->num_readers)
+
+    if (!pipe->num_readers) {
+        struct User_Context *context = CURRENT_THREAD->userContext;
+        context->receivedSignals[SIGPIPE] = true;
         return EPIPE;
+    }
 
     if (!pipe->data_buffer || !buf)
         return EINVALID;
