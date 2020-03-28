@@ -36,6 +36,8 @@
 
 int userDebug = 0;
 
+extern int CPU_Count;
+
 /* ----------------------------------------------------------------------
  * Private functions
  * ---------------------------------------------------------------------- */
@@ -78,14 +80,18 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     context->size = size;
 
     /* Allocate an LDT descriptor for the user context */
-    context->ldtDescriptor = Allocate_Segment_Descriptor();
-    if (context->ldtDescriptor == 0)
-        goto fail;
-    if (userDebug)
-        Print("Allocated descriptor %d for LDT\n",
-              Get_Descriptor_Index(context->ldtDescriptor));
-    Init_LDT_Descriptor(context->ldtDescriptor, context->ldt,
-                        NUM_USER_LDT_ENTRIES);
+    int i;
+    for (i = 0; i < CPU_Count; i++) {
+        context->ldtDescriptor = Allocate_Segment_Descriptor_On_CPU(i);
+        if (context->ldtDescriptor == 0)
+            goto fail;
+        if (userDebug)
+            Print("Allocated descriptor %d for LDT\n",
+                  Get_Descriptor_Index(context->ldtDescriptor));
+        Init_LDT_Descriptor(context->ldtDescriptor, context->ldt,
+                            NUM_USER_LDT_ENTRIES);
+    }
+
     index = Get_Descriptor_Index(context->ldtDescriptor);
     context->ldtSelector = Selector(KERNEL_PRIVILEGE, true, index);
 
@@ -102,7 +108,6 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     /* Nobody is using this user context yet */
     context->refCount = 0;
 
-    int i;
     for (i = 0; i < MAXSIG + 1; i++) {
         if (i == 0)
             context->signalTable[i] = 0;

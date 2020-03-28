@@ -3,7 +3,7 @@
 
 courseName=CMSC412
 semester=202001
-projectNumber=project 2
+projectNumber=project 3
 courseKey=d0b8ee20d492b2eb
 authentication.type=cas
 baseURL=https://submit.cs.umd.edu:443/spring2020

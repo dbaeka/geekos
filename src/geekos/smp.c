@@ -28,6 +28,7 @@
 #include <geekos/gdt.h>
 #include <geekos/kassert.h>
 #include <geekos/projects.h>
+#include <geekos/percpu.h>
 
 /*
  * Information on Intel MP spec from:
@@ -514,7 +515,7 @@ void Secondary_Start(int stack) {
 
     Init_GDT(CPUid);
 
-    TODO_P(PROJECT_PERCPU, "Initialize PERCPU");
+    Init_PerCPU(CPUid);
 
     Init_TSS();
 

@@ -52,6 +52,7 @@
 #include <geekos/smp.h>
 #include <geekos/io.h>
 #include <geekos/serial.h>
+#include <geekos/percpu.h>
 
 
 /*
@@ -117,7 +118,7 @@ void Main(struct Boot_Info *bootInfo) {
     Init_Screen(); //Reset Screen
     Init_Mem(bootInfo);
     Init_CRC32();
-    TODO_P(PROJECT_PERCPU, "Initialize PERCPU");
+    Init_PerCPU(0);
     Init_TSS();
 
     /* by modifying begin_int_atomic to autolock if not locked when interrupts are disabled, 

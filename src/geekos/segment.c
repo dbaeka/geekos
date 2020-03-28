@@ -94,6 +94,20 @@ void Init_Data_Segment_Descriptor(struct Segment_Descriptor *desc,
 }
 
 /*
+ * Initialize a PerCPU descriptor
+ */
+void Init_PerCPU_Segment_Descriptor(struct Segment_Descriptor *desc,
+                                    ulong_t baseAddr) {
+    Set_Size_And_Base_Bytes(desc, baseAddr, sizeof(struct Segment_Descriptor));
+    desc->type = 0x02;          /* 0010b: data, expand-up, writable, !accessed */
+    desc->dpl = 0;
+    desc->system = 1;
+    desc->present = 1;
+    desc->reserved = 0;
+    desc->dbBit = 1;
+}
+
+/*
  * Initialize a TSS descriptor.
  */
 void Init_TSS_Descriptor(struct Segment_Descriptor *desc,
