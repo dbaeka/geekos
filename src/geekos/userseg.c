@@ -82,17 +82,17 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     /* Allocate an LDT descriptor for the user context */
     int i;
     for (i = 0; i < CPU_Count; i++) {
-        context->ldtDescriptor = Allocate_Segment_Descriptor_On_CPU(i);
-        if (context->ldtDescriptor == 0)
+        context->ldtDescriptor[i] = Allocate_Segment_Descriptor_On_CPU(i);
+        if (context->ldtDescriptor[i] == 0)
             goto fail;
         if (userDebug)
             Print("Allocated descriptor %d for LDT\n",
-                  Get_Descriptor_Index(context->ldtDescriptor));
-        Init_LDT_Descriptor(context->ldtDescriptor, context->ldt,
+                  Get_Descriptor_Index(context->ldtDescriptor[i]));
+        Init_LDT_Descriptor(context->ldtDescriptor[i], context->ldt,
                             NUM_USER_LDT_ENTRIES);
     }
 
-    index = Get_Descriptor_Index(context->ldtDescriptor);
+    index = Get_Descriptor_Index(context->ldtDescriptor[0]);
     context->ldtSelector = Selector(KERNEL_PRIVILEGE, true, index);
 
     /* Initialize code and data segments within the LDT */
@@ -166,7 +166,9 @@ void Destroy_User_Context(struct User_Context *userContext) {
     KASSERT(userContext->refCount == 0);
 
     /* Free the context's LDT descriptor */
-    Free_Segment_Descriptor(userContext->ldtDescriptor);
+    int i;
+    for (i = 0; i < CPU_Count; i++)
+        Free_Segment_Descriptor(userContext->ldtDescriptor[i]);
 
     /* Free the context's memory */
     Free(userContext->memory);

@@ -64,7 +64,7 @@ struct User_Context {
      * describing the process's memory.
      */
     struct Segment_Descriptor ldt[NUM_USER_LDT_ENTRIES];
-    struct Segment_Descriptor *ldtDescriptor;
+    struct Segment_Descriptor *ldtDescriptor[8];
 
     /* The memory space used by the process. */
     char *memory;
