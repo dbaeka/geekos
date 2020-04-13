@@ -147,7 +147,7 @@ union type_pun_workaround {
 
 void Identity_Map_Page(pde_t *currentPageDir, unsigned int address,
                        int flags) {
-    currentPageDir->pageTableBaseAddr = address;
+    currentPageDir->pageTableBaseAddr = address >> 12;
     currentPageDir->flags = flags;
     currentPageDir->present = 1;
 
@@ -175,21 +175,21 @@ void Init_VM(struct Boot_Info *bootInfo) {
      */
     int i, j;
     int numPages = bootInfo->memSizeKB >> 2;
-    int numPageTables = numPages / PAGE_SIZE + 1;
+    int numPageTables = numPages / NUM_PAGE_TABLE_ENTRIES + 1;
 
     pageDirectory = Alloc_Page();
-    memset(pageDirectory, 0, PAGE_SIZE * sizeof(pde_t));
+    memset(pageDirectory, 0, NUM_PAGE_DIR_ENTRIES * sizeof(pde_t));
 
-    for (i = 0; i < numPageTables && numPageTables < PAGE_SIZE; i++) {
+    for (i = 0; i < numPageTables; i++) {
         pte_t *pageTable = Alloc_Page();
-        memset(pageTable, 0, PAGE_SIZE * sizeof(pte_t));
+        memset(pageTable, 0, NUM_PAGE_TABLE_ENTRIES * sizeof(pte_t));
 
-        Identity_Map_Page(&pageDirectory[i + 1], (uint_t) pageTable, VM_READ | VM_WRITE | VM_USER);
+        Identity_Map_Page(&pageDirectory[i], (uint_t) pageTable, VM_READ | VM_WRITE | VM_USER);
 
         for (j = 1; j < numPages; j++) {
             pageTable[j].flags = VM_USER | VM_READ | VM_WRITE;
             pageTable[j].present = 1;
-            pageTable[j].pageBaseAddr = (uint_t) (j << 10) + i;
+            pageTable[j].pageBaseAddr = (uint_t) (i << 10) + j;
         }
     }
 
@@ -198,21 +198,20 @@ void Init_VM(struct Boot_Info *bootInfo) {
     uint_t ioapic_pt = PAGE_TABLE_INDEX((int) IO_APIC_Addr);
 
     pte_t *pageTable = Alloc_Page();
-    memset(pageTable, 0, PAGE_SIZE * sizeof(pte_t));
+    memset(pageTable, 0, NUM_PAGE_TABLE_ENTRIES * sizeof(pte_t));
 
     Identity_Map_Page(&pageDirectory[apid_dir], (uint_t) pageTable, VM_READ | VM_WRITE);
 
-    pageTable[apic_pt].flags = VM_USER | VM_READ;
+    pageTable[apic_pt].flags = VM_WRITE | VM_READ;
     pageTable[apic_pt].present = 1;
     pageTable[apic_pt].pageBaseAddr = (uint_t) PAGE_ALIGNED_ADDR((int) APIC_Addr);
 
-    pageTable[ioapic_pt].flags = VM_USER | VM_READ;
+    pageTable[ioapic_pt].flags = VM_WRITE | VM_READ;
     pageTable[ioapic_pt].present = 1;
     pageTable[ioapic_pt].pageBaseAddr = (uint_t) PAGE_ALIGNED_ADDR((int) IO_APIC_Addr);
 
     Enable_Paging(pageDirectory);
     Install_Interrupt_Handler(14, Page_Fault_Handler);
-
 }
 
 void Init_Secondary_VM() {
