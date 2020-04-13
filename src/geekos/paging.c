@@ -38,10 +38,17 @@
 /* ----------------------------------------------------------------------
  * Public data
  * ---------------------------------------------------------------------- */
-
+static pde_t *pageDirectory;
 /* ----------------------------------------------------------------------
  * Private functions/data
  * ---------------------------------------------------------------------- */
+
+/* address of local APIC - generally at the default address */
+static char *const APIC_Addr = (char *) 0xFEE00000;
+
+/* address of IO APIC - generally at the default address */
+static char *const IO_APIC_Addr = (char *) 0xFEC00000;
+
 
 #define SECTORS_PER_PAGE (PAGE_SIZE / SECTOR_SIZE)
 
@@ -55,10 +62,8 @@ int debugFaults = 0;
 /* const because we do not expect any caller to need to
    modify the kernel page directory */
 const pde_t *Kernel_Page_Dir(void) {
-    TODO_P(PROJECT_VIRTUAL_MEMORY_A, "return kernel page directory");
-    return NULL;
+    return pageDirectory;
 }
-
 
 
 /*
@@ -66,23 +71,24 @@ const pde_t *Kernel_Page_Dir(void) {
  */
 static void Print_Fault_Info(uint_t address, faultcode_t faultCode) {
     extern uint_t g_freePageCount;
-    struct Kernel_Thread *current = get_current_thread(0);      /* informational, could be incorrect with low probability */
+    struct Kernel_Thread *current = get_current_thread(
+            0);      /* informational, could be incorrect with low probability */
 
-    if(current) {
+    if (current) {
         Print("Pid %d: (%p/%s)", current->pid, current,
               current->threadName);
     }
     Print("\n Page Fault received, at address %p (%d pages free)\n",
-          (void *)address, g_freePageCount);
-    if(faultCode.protectionViolation)
+          (void *) address, g_freePageCount);
+    if (faultCode.protectionViolation)
         Print("   Protection Violation, ");
     else
         Print("   Non-present page, ");
-    if(faultCode.writeFault)
+    if (faultCode.writeFault)
         Print("Write Fault, ");
     else
         Print("Read Fault, ");
-    if(faultCode.userModeFault)
+    if (faultCode.userModeFault)
         Print("in User Mode\n");
     else
         Print("in Supervisor Mode\n");
@@ -110,7 +116,7 @@ union type_pun_workaround {
     Debug("Page fault @%lx\n", address);
 
 
-    if(address < 0xfec01000 && address > 0xf0000000) {
+    if (address < 0xfec01000 && address > 0xf0000000) {
         Print("page fault address in APIC/IOAPIC range\n");
         goto error;
     }
@@ -126,7 +132,7 @@ union type_pun_workaround {
     TODO_P(PROJECT_MMAP, "handle mmap'd page faults");
 
 
-  error:
+    error:
     Print("Unexpected Page Fault received\n");
     Print_Fault_Info(address, faultCode);
     Dump_Interrupt_State(state);
@@ -139,8 +145,13 @@ union type_pun_workaround {
     Exit(-1);
 }
 
-void Identity_Map_Page(pde_t * currentPageDir, unsigned int address,
+void Identity_Map_Page(pde_t *currentPageDir, unsigned int address,
                        int flags) {
+    currentPageDir->pageTableBaseAddr = address;
+    currentPageDir->flags = flags;
+    currentPageDir->present = 1;
+
+
 }
 
 /* ----------------------------------------------------------------------
@@ -162,12 +173,50 @@ void Init_VM(struct Boot_Info *bootInfo) {
      * - Do not map a page at address 0; this will help trap
      *   null pointer references
      */
-    TODO_P(PROJECT_VIRTUAL_MEMORY_A,
-           "Build initial kernel page directory and page tables");
+    int i, j;
+    int numPages = bootInfo->memSizeKB >> 2;
+    int numPageTables = numPages / PAGE_SIZE + 1;
+
+    pageDirectory = Alloc_Page();
+    memset(pageDirectory, 0, PAGE_SIZE * sizeof(pde_t));
+
+    for (i = 0; i < numPageTables && numPageTables < PAGE_SIZE; i++) {
+        pte_t *pageTable = Alloc_Page();
+        memset(pageTable, 0, PAGE_SIZE * sizeof(pte_t));
+
+        Identity_Map_Page(&pageDirectory[i + 1], (uint_t) pageTable, VM_READ | VM_WRITE | VM_USER);
+
+        for (j = 1; j < numPages; j++) {
+            pageTable[j].flags = VM_USER | VM_READ | VM_WRITE;
+            pageTable[j].present = 1;
+            pageTable[j].pageBaseAddr = (uint_t) (j << 10) + i;
+        }
+    }
+
+    int apid_dir = PAGE_DIRECTORY_INDEX((int) APIC_Addr);
+    uint_t apic_pt = PAGE_TABLE_INDEX((int) APIC_Addr);
+    uint_t ioapic_pt = PAGE_TABLE_INDEX((int) IO_APIC_Addr);
+
+    pte_t *pageTable = Alloc_Page();
+    memset(pageTable, 0, PAGE_SIZE * sizeof(pte_t));
+
+    Identity_Map_Page(&pageDirectory[apid_dir], (uint_t) pageTable, VM_READ | VM_WRITE);
+
+    pageTable[apic_pt].flags = VM_USER | VM_READ;
+    pageTable[apic_pt].present = 1;
+    pageTable[apic_pt].pageBaseAddr = (uint_t) PAGE_ALIGNED_ADDR((int) APIC_Addr);
+
+    pageTable[ioapic_pt].flags = VM_USER | VM_READ;
+    pageTable[ioapic_pt].present = 1;
+    pageTable[ioapic_pt].pageBaseAddr = (uint_t) PAGE_ALIGNED_ADDR((int) IO_APIC_Addr);
+
+    Enable_Paging(pageDirectory);
+    Install_Interrupt_Handler(14, Page_Fault_Handler);
+
 }
 
 void Init_Secondary_VM() {
-    TODO_P(PROJECT_VIRTUAL_MEMORY_A, "enable paging on secondary cores");
+    Enable_Paging(pageDirectory);
 }
 
 /**
@@ -250,7 +299,7 @@ void *Mmap_Impl(void *ptr, unsigned int length, int prot, int flags,
     return NULL;
 }
 
-bool Is_Mmaped_Page(struct User_Context * context, ulong_t vaddr) {
+bool Is_Mmaped_Page(struct User_Context *context, ulong_t vaddr) {
     TODO_P(PROJECT_MMAP,
            "is this passed vaddr an mmap'd page in the passed user context");
     return false;
