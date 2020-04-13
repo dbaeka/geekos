@@ -11,7 +11,7 @@ CC_GENERAL_OPTS := $(GENERAL_OPTS)  -W -Wwrite-strings -Wno-unused-parameter -Wn
 MEM := 64
 # QEMU := /Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu -std-vga
 QEMU_BIN ?= /usr/local/bin/qemu-system-i386
-QEMU := $(QEMU_BIN) -smp 4 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501  -m $(MEM) -debugcon file:output.log -serial stdio
+QEMU := $(QEMU_BIN) -smp 2 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501  -m $(MEM) -debugcon file:output.log -serial stdio
 VALGRIND := valgrind --tool=memcheck --leak-check=full --log-file=qemu.log
 # to use COM2 on stdio, omit -serial stdio and add: 
 # -device isa-serial,iobase=0x2f8,irq=3,index=2,chardev=s2 -chardev stdio,id=s2 #-soundhw sb16 
