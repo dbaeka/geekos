@@ -174,7 +174,7 @@ void Init_VM(struct Boot_Info *bootInfo) {
      *   null pointer references
      */
     int i, j;
-    int numPages = bootInfo->memSizeKB >> 2;
+    int numPages = 1028; //bootInfo->memSizeKB >> 2;
     int numPageTables = numPages / NUM_PAGE_TABLE_ENTRIES + 1;
 
     pageDirectory = Alloc_Page();
@@ -186,11 +186,14 @@ void Init_VM(struct Boot_Info *bootInfo) {
 
         Identity_Map_Page(&pageDirectory[i], (uint_t) pageTable, VM_READ | VM_WRITE | VM_USER);
 
-        for (j = 1; j < numPages; j++) {
+        int pagesRem = numPages/NUM_PAGE_TABLE_ENTRIES + 1;
+        int max = (pagesRem == 1) ? NUM_PAGE_TABLE_ENTRIES : numPages;
+        for (j = 1; j < max; j++) {
             pageTable[j].flags = VM_USER | VM_READ | VM_WRITE;
             pageTable[j].present = 1;
             pageTable[j].pageBaseAddr = (uint_t) (i << 10) + j;
         }
+        numPages -= NUM_PAGE_TABLE_ENTRIES;
     }
 
     int apid_dir = PAGE_DIRECTORY_INDEX((int) APIC_Addr);
