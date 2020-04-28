@@ -26,11 +26,11 @@
 struct Page;
 struct User_Context;
 
-#define NUM_PAGE_TABLE_ENTRIES	1024
-#define NUM_PAGE_DIR_ENTRIES	1024
+#define NUM_PAGE_TABLE_ENTRIES    1024
+#define NUM_PAGE_DIR_ENTRIES    1024
 
-#define PAGE_DIRECTORY_INDEX(x)	(((x) >> 22) & 0x3ff)
-#define PAGE_TABLE_INDEX(x)	(((x) >> 12) & 0x3ff)
+#define PAGE_DIRECTORY_INDEX(x)    (((x) >> 22) & 0x3ff)
+#define PAGE_TABLE_INDEX(x)    (((x) >> 12) & 0x3ff)
 
 #define PAGE_ALIGNED_ADDR(x)   (((unsigned int) (x)) >> 12)
 #define PAGE_ADDR(x)   (PAGE_ALIGNED_ADDR(x) << 12)
@@ -105,15 +105,19 @@ typedef struct _mappedRegion {
 /*
  * Bits used in the kernelInfo field of the PTE's:
  */
-#define KINFO_PAGE_ON_DISK	0x4     /* Page not present; contents in paging file */
+#define KINFO_PAGE_ON_DISK    0x4     /* Page not present; contents in paging file */
 
 void Init_VM(struct Boot_Info *bootInfo);
+
 void Init_Paging(void);
 
 extern void Flush_TLB(void);
-extern void Set_PDBR(const pde_t * pageDir);
+
+extern void Set_PDBR(const pde_t *pageDir);
+
 extern pde_t *Get_PDBR(void);
-extern void Enable_Paging(pde_t * pageDir);
+
+extern void Enable_Paging(pde_t *pageDir);
 
 /*
  * Return the address that caused a page fault.
@@ -121,16 +125,22 @@ extern void Enable_Paging(pde_t * pageDir);
 static __inline__ ulong_t Get_Page_Fault_Address(void) {
     ulong_t faultAddress;
     __asm__ __volatile__("mov %%cr2, %0":"=r"(faultAddress)
-        );
+    );
     return faultAddress;
 }
 
+void Identity_Map_Page(pde_t *currentPageDir, unsigned int address, int flags);
+
 int Find_Space_On_Paging_File(void);
+
 void Free_Space_On_Paging_File(int pagefileIndex);
+
 void Write_To_Paging_File(void *paddr, ulong_t vaddr, int pagefileIndex);
+
 void Read_From_Paging_File(void *paddr, ulong_t vaddr, int pagefileIndex);
 
 bool Is_Mmaped_Page(struct User_Context *context, ulong_t vaddr);
+
 void Write_Out_Mmaped_Page(struct User_Context *context, ulong_t vaddr);
 
 extern const pde_t *Kernel_Page_Dir(void);
