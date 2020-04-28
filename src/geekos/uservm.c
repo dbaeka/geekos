@@ -97,9 +97,9 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
 
     /* Allocate an LDT descriptor for the user context */
     context->ldtDescriptor = Allocate_Segment_Descriptor();
-    if(context->ldtDescriptor == 0)
+    if (context->ldtDescriptor == 0)
         goto fail;
-    if(userDebug)
+    if (userDebug)
         Print("Allocated descriptor %d for LDT\n",
               Get_Descriptor_Index(context->ldtDescriptor));
     Init_LDT_Descriptor(context->ldtDescriptor, context->ldt,
@@ -126,8 +126,8 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
 
     fail:
     /* We failed; release any allocated memory */
-    if(context != 0) {
-        if(context->memory != 0)
+    if (context != 0) {
+        if (context->memory != 0)
             Free(context->memory);
         Free(context);
     }
@@ -298,9 +298,9 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
         ulong_t pageTablesRem = (numPageTables + begin_user_dir - i);
         ulong_t max = (pageTablesRem != 1) ? NUM_PAGE_TABLE_ENTRIES : tmpNumPages;
         for (j = 0; j < max; j++) {
-            pageTable[j].flags = VM_USER | VM_READ | VM_WRITE;
-            pageTable[j].present = 1;
-            if (j != 0) {
+            if (!(i == begin_user_dir && j == 0)) {
+                pageTable[j].flags = VM_USER | VM_READ | VM_WRITE;
+                pageTable[j].present = 1;
                 uint_t vaddr = (((i - begin_user_dir) * NUM_PAGE_TABLE_ENTRIES) + (j - 1)) * PAGE_SIZE;
                 void *pageMem = Alloc_Pageable_Page(&pageTable[j], vaddr);
                 if (pageMem == 0)
