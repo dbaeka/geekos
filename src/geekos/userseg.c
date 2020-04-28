@@ -148,7 +148,7 @@ void Destroy_User_Context(struct User_Context *userContext) {
     Free_Segment_Descriptor(userContext->ldtDescriptor);
 
     /* Free the context's memory */
-    Free(userContext->memory);
+//    Free(userContext->memory);
     Free(userContext);
 }
 

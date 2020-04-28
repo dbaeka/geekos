@@ -57,6 +57,7 @@ static char *const APIC_Addr = (char *) 0xFEE00000;
 /* address of IO APIC - generally at the default address */
 static char *const IO_APIC_Addr = (char *) 0xFEC00000;
 
+#define UNMAP_ADDR(x)   (((unsigned int) (x)) << 12)
 
 /* const because we do not expect any caller to need to
    modify the kernel page directory */
@@ -170,30 +171,34 @@ void Init_VM(struct Boot_Info *bootInfo) {
      * - Do not map a page at address 0; this will help trap
      *   null pointer references
      */
-    int i, j;
-    int numPages = (bootInfo->memSizeKB >> 2) + 1;
-    int numPageTables = numPages / NUM_PAGE_TABLE_ENTRIES + 1;
+    ulong_t i;
+    ulong_t bytes = bootInfo->memSizeKB << 10;
+    ulong_t lastPageVAddr = Round_Up_To_Page(bytes);
+    ulong_t startPageAddr = 0x0;
 
     pageDirectory = Alloc_Page();
     memset(pageDirectory, 0, NUM_PAGE_DIR_ENTRIES * sizeof(pde_t));
 
-    for (i = 0; i < numPageTables; i++) {
-        pte_t *pageTable = Alloc_Page();
-        memset(pageTable, 0, NUM_PAGE_TABLE_ENTRIES * sizeof(pte_t));
-
-        Identity_Map_Page(&pageDirectory[i], (uint_t) pageTable, VM_USER | VM_READ | VM_WRITE);
-
-        int pageTablesRem = numPageTables - i;
-        int max = (pageTablesRem != 1) ? NUM_PAGE_TABLE_ENTRIES : numPages;
-        for (j = 0; j < max; j++) {
-            pageTable[j].flags = VM_USER | VM_READ | VM_WRITE;
-            pageTable[j].present = 1;
-            if (j != 0)
-                pageTable[j].pageBaseAddr = (uint_t) (i << 10) + j;
+    for (i = startPageAddr; i < lastPageVAddr; i += PAGE_SIZE) {
+        ulong_t pDirIdx = PAGE_DIRECTORY_INDEX((ulong_t) i);
+        ulong_t pTableIdx = PAGE_TABLE_INDEX((ulong_t) i);
+        pde_t *pageDir = &pageDirectory[pDirIdx];
+        if (!pageDir->present) {
+            pte_t *pageTable = Alloc_Page();
+            memset(pageTable, 0, NUM_PAGE_TABLE_ENTRIES * sizeof(pte_t));
+            Identity_Map_Page(pageDir, (uint_t) pageTable, VM_READ | VM_WRITE);
+            if (PAGE_ALIGNED_ADDR(i) != 0) {
+                pageTable[pTableIdx].pageBaseAddr = PAGE_ALIGNED_ADDR(i);
+                pageTable[pTableIdx].flags = VM_READ | VM_WRITE;
+                pageTable[pTableIdx].present = 1;
+            }
+        } else {
+            pte_t *pageTable = (pte_t *) ((ulong_t) UNMAP_ADDR(pageDir->pageTableBaseAddr));
+            pageTable[pTableIdx].pageBaseAddr = PAGE_ALIGNED_ADDR(i);
+            pageTable[pTableIdx].flags = VM_READ | VM_WRITE;
+            pageTable[pTableIdx].present = 1;
         }
-        numPages -= NUM_PAGE_TABLE_ENTRIES;
     }
-
 
     pte_t *pageTable = Alloc_Page();
     memset(pageTable, 0, NUM_PAGE_TABLE_ENTRIES * sizeof(pte_t));
