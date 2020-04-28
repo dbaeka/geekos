@@ -99,7 +99,6 @@ struct File {
      */
     int mode;                   /* Mode (read vs. write). */
     struct Mount_Point *mountPoint;     /* Mounted filesystem file is part of. */
-    int refCount;
 };
 
 /* Operations that can be performed on a File. */

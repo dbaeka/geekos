@@ -16,130 +16,29 @@
 #include <geekos/errno.h>
 #include <geekos/projects.h>
 #include <geekos/int.h>
-#include <geekos/vfs.h>
-#include <geekos/signal.h>
-#include <geekos/kthread.h>
-#include <geekos/user.h>
 
-extern struct Mutex s_vfsLock;
 
 const struct File_Ops Pipe_Read_Ops =
-        {NULL, Pipe_Read, NULL, NULL, Pipe_Close, NULL};
+    { NULL, Pipe_Read, NULL, NULL, Pipe_Close, NULL };
 const struct File_Ops Pipe_Write_Ops =
-        {NULL, NULL, Pipe_Write, NULL, Pipe_Close, NULL};
+    { NULL, NULL, Pipe_Write, NULL, Pipe_Close, NULL };
 
 int Pipe_Create(struct File **read_file, struct File **write_file) {
-    struct Pipe *pipe = Malloc(sizeof(struct Pipe));
-    if (pipe) {
-        pipe->data_buffer = Malloc(MAX_PIPE_BUFFER);
-        if (pipe->data_buffer) {
-            pipe->rPos = pipe->wPos = pipe->bufferLength = 0;
-            pipe->num_readers = pipe->num_writers = 1;
-            *read_file = Allocate_File(&Pipe_Read_Ops, 0, 0, (void *) pipe, 0, 0);
-            if (*read_file) {
-                *write_file = Allocate_File(&Pipe_Write_Ops, 0, 0, (void *) pipe, 0, 0);
-                if (*write_file) {
-                    Mutex_Lock(&s_vfsLock);
-                    (**read_file).refCount = (**write_file).refCount = 1; //write_file->refCount = 1;
-                    Mutex_Unlock(&s_vfsLock);
-                    return 0;
-                }
-                if (*read_file)
-                    Free(*read_file);
-            }
-            if (pipe->data_buffer)
-                Free(pipe->data_buffer);
-        }
-        Free(pipe);
-    }
-    return ENOMEM;
+    TODO_P(PROJECT_PIPE, "Create a pipe");
+    return EUNSUPPORTED;
 }
 
 int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
-    struct Pipe *pipe = (struct Pipe *) (f->fsData);
-//    Mutex_Lock(&s_vfsLock);
-    if (!pipe->data_buffer || !buf)
-        return EINVALID;
-
-    int bytesRead = 0;
-    ulong_t i;
-
-    char *sourceBuffer = (char *) pipe->data_buffer;
-    char *dstBuffer = (char *) buf;
-
-    if (pipe->num_writers > 0)
-        if (!pipe->bufferLength)
-            return EWOULDBLOCK;
-
-    for (i = 0; i < numBytes; i++) {
-        if (!pipe->bufferLength)
-            break;
-        dstBuffer[i] = sourceBuffer[pipe->rPos];
-        pipe->bufferLength--;
-        bytesRead++;
-        pipe->rPos = (pipe->rPos + 1) % MAX_PIPE_BUFFER;
-    }
-//    Mutex_Unlock(&s_vfsLock);
-    return bytesRead;
+    TODO_P(PROJECT_PIPE, "Pipe read");
+    return EUNSUPPORTED;
 }
 
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
-    struct Pipe *pipe = (struct Pipe *) (f->fsData);
-
-    if (!pipe->num_readers) {
-        struct User_Context *context = CURRENT_THREAD->userContext;
-        context->receivedSignals[SIGPIPE] = true;
-        return EPIPE;
-    }
-
-    if (!pipe->data_buffer || !buf)
-        return EINVALID;
-
-    int bytesWritten = 0;
-    ulong_t i;
-
-    char *dstBuffer = (char *) pipe->data_buffer;
-    char *sourceBuffer = (char *) buf;
-
-    for (i = 0; i < numBytes; i++) {
-        if (pipe->bufferLength == MAX_PIPE_BUFFER)
-            break;
-        dstBuffer[pipe->wPos] = sourceBuffer[i];
-        pipe->bufferLength++;
-        bytesWritten++;
-        pipe->wPos = (pipe->wPos + 1) % MAX_PIPE_BUFFER;
-    }
-//    Mutex_Unlock(&s_vfsLock);
-    return bytesWritten;
+    TODO_P(PROJECT_PIPE, "Pipe write");
+    return EUNSUPPORTED;
 }
 
 int Pipe_Close(struct File *f) {
-    struct Pipe *pipe = (struct Pipe *) (f->fsData);
-
-//    if (!pipe->data_buffer)
-//        return EINVALID;
-
-    if (f->ops == &Pipe_Read_Ops && pipe->num_readers > 0) {
-        if (f->refCount != 0)
-            return 0;
-        pipe->num_readers--;
-    } else if (f->ops == &Pipe_Write_Ops && pipe->num_writers > 0) {
-        if (f->refCount != 0)
-            return 0;
-        pipe->num_writers--;
-    }
-    if (pipe->bufferLength && pipe->num_readers)
-        return 0;
-
-    if (pipe->data_buffer && pipe->num_readers == 0) {
-        Free(pipe->data_buffer);
-        pipe->data_buffer = 0;
-        pipe->bufferLength = 0;
-    }
-    if (!pipe->num_readers && !pipe->num_writers) {
-        Free(pipe);
-        f->fsData = 0;
-    }
-
+    TODO_P(PROJECT_PIPE, "Pipe close");
     return 0;
 }

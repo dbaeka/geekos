@@ -43,13 +43,6 @@ static pde_t *pageDirectory;
  * Private functions/data
  * ---------------------------------------------------------------------- */
 
-/* address of local APIC - generally at the default address */
-static char *const APIC_Addr = (char *) 0xFEE00000;
-
-/* address of IO APIC - generally at the default address */
-static char *const IO_APIC_Addr = (char *) 0xFEC00000;
-
-
 #define SECTORS_PER_PAGE (PAGE_SIZE / SECTOR_SIZE)
 
 /*
@@ -57,6 +50,12 @@ static char *const IO_APIC_Addr = (char *) 0xFEC00000;
  */
 int debugFaults = 0;
 #define Debug(args...) if (debugFaults) Print(args)
+
+/* address of local APIC - generally at the default address */
+static char *const APIC_Addr = (char *) 0xFEE00000;
+
+/* address of IO APIC - generally at the default address */
+static char *const IO_APIC_Addr = (char *) 0xFEC00000;
 
 
 /* const because we do not expect any caller to need to
@@ -150,8 +149,6 @@ void Identity_Map_Page(pde_t *currentPageDir, unsigned int address,
     currentPageDir->pageTableBaseAddr = address >> 12;
     currentPageDir->flags = flags;
     currentPageDir->present = 1;
-
-
 }
 
 /* ----------------------------------------------------------------------
@@ -174,7 +171,7 @@ void Init_VM(struct Boot_Info *bootInfo) {
      *   null pointer references
      */
     int i, j;
-    int numPages = 1028; //bootInfo->memSizeKB >> 2;
+    int numPages = (bootInfo->memSizeKB >> 2) + 1;
     int numPageTables = numPages / NUM_PAGE_TABLE_ENTRIES + 1;
 
     pageDirectory = Alloc_Page();
@@ -184,24 +181,26 @@ void Init_VM(struct Boot_Info *bootInfo) {
         pte_t *pageTable = Alloc_Page();
         memset(pageTable, 0, NUM_PAGE_TABLE_ENTRIES * sizeof(pte_t));
 
-        Identity_Map_Page(&pageDirectory[i], (uint_t) pageTable, VM_READ | VM_WRITE | VM_USER);
+        Identity_Map_Page(&pageDirectory[i], (uint_t) pageTable, VM_USER | VM_READ | VM_WRITE);
 
-        int pagesRem = numPages/NUM_PAGE_TABLE_ENTRIES + 1;
-        int max = (pagesRem == 1) ? NUM_PAGE_TABLE_ENTRIES : numPages;
-        for (j = 1; j < max; j++) {
+        int pageTablesRem = numPageTables - i;
+        int max = (pageTablesRem != 1) ? NUM_PAGE_TABLE_ENTRIES : numPages;
+        for (j = 0; j < max; j++) {
             pageTable[j].flags = VM_USER | VM_READ | VM_WRITE;
             pageTable[j].present = 1;
-            pageTable[j].pageBaseAddr = (uint_t) (i << 10) + j;
+            if (j != 0)
+                pageTable[j].pageBaseAddr = (uint_t) (i << 10) + j;
         }
         numPages -= NUM_PAGE_TABLE_ENTRIES;
     }
 
-    int apid_dir = PAGE_DIRECTORY_INDEX((int) APIC_Addr);
-    uint_t apic_pt = PAGE_TABLE_INDEX((int) APIC_Addr);
-    uint_t ioapic_pt = PAGE_TABLE_INDEX((int) IO_APIC_Addr);
 
     pte_t *pageTable = Alloc_Page();
     memset(pageTable, 0, NUM_PAGE_TABLE_ENTRIES * sizeof(pte_t));
+
+    int apid_dir = PAGE_DIRECTORY_INDEX((ulong_t) APIC_Addr);
+    uint_t apic_pt = PAGE_TABLE_INDEX((ulong_t) APIC_Addr);
+    uint_t ioapic_pt = PAGE_TABLE_INDEX((ulong_t) IO_APIC_Addr);
 
     Identity_Map_Page(&pageDirectory[apid_dir], (uint_t) pageTable, VM_READ | VM_WRITE);
 

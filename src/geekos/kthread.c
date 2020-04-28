@@ -26,7 +26,6 @@
 #include <geekos/projects.h>
 #include <geekos/smp.h>
 #include <geekos/synch.h>
-#include <geekos/percpu.h>
 
 extern Spin_Lock_t kthreadLock;
 
@@ -115,7 +114,6 @@ static void Init_Thread(struct Kernel_Thread *kthread, void *stackPage,
     kthread->owner = owner;
     kthread->affinity = AFFINITY_ANY_CORE;
     kthread->totalTime = 0;
-    kthread->waited_on = false;
 
     /*
      * The thread has an implicit self-reference and 
@@ -135,7 +133,7 @@ static void Init_Thread(struct Kernel_Thread *kthread, void *stackPage,
  * Create a new raw thread object.
  * Returns a null pointer if there isn't enough memory.
  */
-struct Kernel_Thread *Create_Thread(int priority, bool detached) {
+static struct Kernel_Thread *Create_Thread(int priority, bool detached) {
     struct Kernel_Thread *kthread;
     void *stackPage = 0;
 
@@ -368,7 +366,8 @@ static void Setup_Kernel_Thread(struct Kernel_Thread *kthread,
     Push(kthread, KERNEL_DS);   /* ds */
     Push(kthread, KERNEL_DS);   /* es */
     Push(kthread, 0);           /* fs */
-    Push(kthread, KERNEL_GS);   /* gs */
+    Push(kthread, 0);           /* gs */
+    TODO_P(PROJECT_PERCPU, "set gs to the per-cpu segment");
 }
 
 /*
@@ -440,8 +439,6 @@ static void Setup_Kernel_Thread(struct Kernel_Thread *kthread,
     /* allow it to run on any core */
     kthread->affinity = -1;
 }
-
-
 
 
 /*
@@ -569,7 +566,7 @@ void Init_Scheduler(unsigned int cpuID, void *stack) {
      */
     Init_Thread(mainThread, stack, PRIORITY_NORMAL, true);
     g_currentThreads[Get_CPU_ID()] = mainThread;
-    g_PerCPU_Vars[Get_CPU_ID()].currentThread = mainThread;
+    TODO_P(PROJECT_PERCPU, "set the current thread now that we have one");
     Add_To_Back_Of_All_Thread_List(&s_allThreadList, mainThread);
     strcpy(mainThread->threadName, "{Main}");
 
@@ -785,7 +782,6 @@ int Join(struct Kernel_Thread *kthread) {
     /* It is only legal for the owner to join */
     KASSERT(kthread->owner == CURRENT_THREAD);
 
-    kthread->waited_on = true;
     /* Wait for it to die */
     while (kthread->alive) {
         Wait(&kthread->joinQueue);
@@ -797,6 +793,7 @@ int Join(struct Kernel_Thread *kthread) {
     /* once joined we are effectively detached - prevents Exit from this thread trying to double detach */
     /* do this before detach since deatch can free the thread */
     kthread->detached = 1;
+
 
     Enable_Interrupts();
 

@@ -5,25 +5,24 @@
  *
  * All rights reserved.
  *
- * This code may not be resdistributed without the permission of the copyright
- * holders. Any student solutions using any of this code base constitute
- * derviced work and may not be redistributed in any form.  This includes (but
- * is not limited to) posting on public forums or web sites, providing copies to
- * (past, present, or future) students enrolled in similar operating systems
- * courses the University of Maryland's CMSC412 course.
+ * This code may not be resdistributed without the permission of the copyright holders.
+ * Any student solutions using any of this code base constitute derviced work and may
+ * not be redistributed in any form.  This includes (but is not limited to) posting on
+ * public forums or web sites, providing copies to (past, present, or future) students
+ * enrolled in similar operating systems courses the University of Maryland's CMSC412 course.
  *
  * $Revision: 1.47 $
- *
+ * 
  */
 
 #include <geekos/errno.h>
 #include <geekos/list.h>
-#include <geekos/malloc.h>
-#include <geekos/projects.h>
-#include <geekos/screen.h>
 #include <geekos/string.h>
+#include <geekos/screen.h>
+#include <geekos/malloc.h>
 #include <geekos/synch.h>
 #include <geekos/vfs.h>
+#include <geekos/projects.h>
 
 /*
  * Notes:
@@ -40,17 +39,14 @@
  * from concurrent access/modification.  Simple, but not efficient.
  * Perhaps this should really be a reader/writer lock.
  */
-struct Mutex s_vfsLock;
+static struct Mutex s_vfsLock;
 
 int debugVFS = 0;
-#define Debug(args...)                                                         \
-  if (debugVFS)                                                                \
-  Print("VFS: " args)
+#define Debug(args...) if (debugVFS) Print("VFS: " args)
 
 struct Filesystem;
 
 DEFINE_LIST(Mount_Point_List, Mount_Point);
-
 IMPLEMENT_LIST(Mount_Point_List, Mount_Point);
 
 /* List of mounted filesystems. */
@@ -60,11 +56,10 @@ static struct Mount_Point_List s_mountPointList;
 struct Filesystem {
     struct Filesystem_Ops *ops;
     char fsName[VFS_MAX_FS_NAME_LEN + 1];
-    DEFINE_LINK(Filesystem_List, Filesystem);
+     DEFINE_LINK(Filesystem_List, Filesystem);
 };
 
 DEFINE_LIST(Filesystem_List, Filesystem);
-
 IMPLEMENT_LIST(Filesystem_List, Filesystem);
 
 /* List of registered filesystem types. */
@@ -86,27 +81,28 @@ static struct Paging_Device *s_pagingDevice;
  *   pSuffix - stores the pointer to the suffix part of path
  * Returns: true if path is valid, false if not
  */
-static bool Unpack_Path(const char *path, char *prefix, const char **pSuffix) {
+static bool Unpack_Path(const char *path, char *prefix,
+                        const char **pSuffix) {
     char *slash;
     size_t pfxLen;
 
     Debug("path=%s\n", path);
 
     /* Path must start with '/' */
-    if (*path != '/')
+    if(*path != '/')
         return false;
     ++path;
 
     /* Look for the initial slash. */
     slash = strchr(path, '/');
-    if (slash == 0) {
+    if(slash == 0) {
         /*
          * Special case: path of the form "/prefix".
          * It resolves to the root directory of
          * the filesystem mounted on the prefix.
          */
         pfxLen = strlen(path);
-        if (pfxLen == 0 || pfxLen > MAX_PREFIX_LEN)
+        if(pfxLen == 0 || pfxLen > MAX_PREFIX_LEN)
             return false;
         strcpy(prefix, path);
         *pSuffix = "/";
@@ -116,7 +112,7 @@ static bool Unpack_Path(const char *path, char *prefix, const char **pSuffix) {
          * It needs to be non-zero, but less than MAX_PREFIX_LEN.
          */
         pfxLen = slash - path;
-        if (pfxLen == 0 || pfxLen > MAX_PREFIX_LEN)
+        if(pfxLen == 0 || pfxLen > MAX_PREFIX_LEN)
             return false;
 
         /* Format the path prefix as a string */
@@ -147,9 +143,9 @@ static struct Filesystem *Lookup_Filesystem(const char *fstype) {
     struct Filesystem *fs;
 
     Mutex_Lock(&s_vfsLock);
-    for (fs = Get_Front_Of_Filesystem_List(&s_filesystemList); fs != 0;
-         fs = Get_Next_In_Filesystem_List(fs)) {
-        if (strcmp(fs->fsName, fstype) == 0)
+    for(fs = Get_Front_Of_Filesystem_List(&s_filesystemList);
+        fs != 0; fs = Get_Next_In_Filesystem_List(fs)) {
+        if(strcmp(fs->fsName, fstype) == 0)
             break;
     }
     Mutex_Unlock(&s_vfsLock);
@@ -169,10 +165,12 @@ static struct Mount_Point *Lookup_Mount_Point(const char *prefix) {
     Mutex_Lock(&s_vfsLock);
 
     /* Look for a mounted filesystem with a matching prefix */
-    for (mountPoint = Get_Front_Of_Mount_Point_List(&s_mountPointList);
-         mountPoint != 0; mountPoint = Get_Next_In_Mount_Point_List(mountPoint)) {
-        Debug("Lookup mount point: %s,%s\n", prefix, mountPoint->pathPrefix);
-        if (strcmp(prefix, mountPoint->pathPrefix) == 0)
+    for(mountPoint = Get_Front_Of_Mount_Point_List(&s_mountPointList);
+        mountPoint != 0;
+        mountPoint = Get_Next_In_Mount_Point_List(mountPoint)) {
+        Debug("Lookup mount point: %s,%s\n", prefix,
+              mountPoint->pathPrefix);
+        if(strcmp(prefix, mountPoint->pathPrefix) == 0)
             break;
     }
 
@@ -185,25 +183,25 @@ static struct Mount_Point *Lookup_Mount_Point(const char *prefix) {
  * Common implementation function for Open() and Open_Directory().
  */
 static int Do_Open(const char *path, int mode, struct File **pFile,
-                   int (*openFunc)(struct Mount_Point *mountPoint,
-                                   const char *path, int mode,
-                                   struct File **pFile)) {
+                   int (*openFunc) (struct Mount_Point * mountPoint,
+                                    const char *path, int mode,
+                                    struct File ** pFile)) {
     char prefix[MAX_PREFIX_LEN + 1];
     const char *suffix;
     struct Mount_Point *mountPoint;
     int rc;
 
-    if (!Unpack_Path(path, prefix, &suffix))
+    if(!Unpack_Path(path, prefix, &suffix))
         return ENOTFOUND;
 
     /* Get mount point for path */
     mountPoint = Lookup_Mount_Point(prefix);
-    if (mountPoint == 0)
+    if(mountPoint == 0)
         return ENOTFOUND;
 
     /* Call into actual Open() or Open_Directory() function. */
     rc = openFunc(mountPoint, suffix, mode, pFile);
-    if (rc == 0) {
+    if(rc == 0) {
         /* File opened successfully! */
         (*pFile)->mode = mode;
         (*pFile)->mountPoint = mountPoint;
@@ -216,19 +214,18 @@ static int Do_Open(const char *path, int mode, struct File **pFile,
  */
 static int Do_Open_File(struct Mount_Point *mountPoint, const char *path,
                         int mode, struct File **pFile) {
-    KASSERT(mountPoint->ops->Open !=
-            0); /* All filesystems must implement Open(). */
+    KASSERT(mountPoint->ops->Open != 0);        /* All filesystems must implement Open(). */
     return mountPoint->ops->Open(mountPoint, path, mode, pFile);
 }
 
 /*
  * Adapter for Open_Directory().
  */
-static int Do_Open_Directory(struct Mount_Point *mountPoint, const char *path,
-                             int mode __attribute__((unused)),
+static int Do_Open_Directory(struct Mount_Point *mountPoint,
+                             const char *path, int mode
+                             __attribute__ ((unused)),
                              struct File **pDir) {
-    KASSERT(mountPoint->ops->Open_Directory !=
-            0); /* All filesystems must implement Open_Directory(). */
+    KASSERT(mountPoint->ops->Open_Directory != 0);      /* All filesystems must implement Open_Directory(). */
     return mountPoint->ops->Open_Directory(mountPoint, path, pDir);
 }
 
@@ -245,7 +242,8 @@ static int Do_Open_Directory(struct Mount_Point *mountPoint, const char *path,
  *   fsOps - the Filesystem_Ops for the filesystem
  * Returns true if successful, false if not.
  */
-bool Register_Filesystem(const char *fsName, struct Filesystem_Ops *fsOps) {
+bool Register_Filesystem(const char *fsName,
+                         struct Filesystem_Ops * fsOps) {
     struct Filesystem *fs;
 
     KASSERT(fsName != 0);
@@ -255,8 +253,8 @@ bool Register_Filesystem(const char *fsName, struct Filesystem_Ops *fsOps) {
     Debug("Registering %s filesystem type\n", fsName);
 
     /* Allocate Filesystem struct */
-    fs = (struct Filesystem *) Malloc(sizeof(*fs));
-    if (fs == 0)
+    fs = (struct Filesystem *)Malloc(sizeof(*fs));
+    if(fs == 0)
         return false;
 
     /* Copy filesystem name and vtable. */
@@ -265,7 +263,6 @@ bool Register_Filesystem(const char *fsName, struct Filesystem_Ops *fsOps) {
     fs->fsName[VFS_MAX_FS_NAME_LEN] = '\0';
 
     /* Add the filesystem to the list */
-
     Mutex_Lock(&s_vfsLock);
     Add_To_Back_Of_Filesystem_List(&s_filesystemList, fs);
     Mutex_Unlock(&s_vfsLock);
@@ -287,16 +284,16 @@ int Format(const char *devname, const char *fstype) {
 
     /* Find the named filesystem type */
     fs = Lookup_Filesystem(fstype);
-    if (fs == 0)
+    if(fs == 0)
         return ENOFILESYS;
     Debug("Found %s filesystem type\n", fstype);
 
     /* The Format() operation is optional. */
-    if (fs->ops->Format == 0)
+    if(fs->ops->Format == 0)
         return EUNSUPPORTED;
 
     /* Attempt to open the block device */
-    if ((rc = Open_Block_Device(devname, &dev)) < 0)
+    if((rc = Open_Block_Device(devname, &dev)) < 0)
         return rc;
     Debug("Opened device %s\n", dev->name);
 
@@ -326,35 +323,35 @@ int Mount(const char *devname, const char *pathPrefix, const char *fstype) {
     while (*pathPrefix == '/')
         ++pathPrefix;
 
-    if (strlen(pathPrefix) > MAX_PREFIX_LEN)
+    if(strlen(pathPrefix) > MAX_PREFIX_LEN)
         return ENAMETOOLONG;
 
     /* Find the named filesystem type */
     fs = Lookup_Filesystem(fstype);
-    if (fs == 0)
+    if(fs == 0)
         return ENOFILESYS;
-    KASSERT(fs->ops->Mount != 0); /* All filesystems must implement Mount(). */
+    KASSERT(fs->ops->Mount != 0);       /* All filesystems must implement Mount(). */
 
     /* Attempt to open the block device */
-    if ((rc = Open_Block_Device(devname, &dev)) < 0) {
+    if((rc = Open_Block_Device(devname, &dev)) < 0) {
         Print("Open_Block_Device: Unable to open %s\n", devname);
         return rc;
     }
 
     /* Create Mount_Point structure. */
-    mountPoint = (struct Mount_Point *) Malloc(sizeof(*mountPoint));
-    if (mountPoint == 0)
+    mountPoint = (struct Mount_Point *)Malloc(sizeof(*mountPoint));
+    if(mountPoint == 0)
         goto memfail;
     memset(mountPoint, '\0', sizeof(*mountPoint));
     mountPoint->dev = dev;
     mountPoint->pathPrefix = strdup(pathPrefix);
-    if (mountPoint->pathPrefix == 0)
+    if(mountPoint->pathPrefix == 0)
         goto memfail;
 
     Debug("Mounting %s on %s using %s fs\n", devname, pathPrefix, fstype);
 
     /* Call the filesystem mount function. */
-    if ((rc = fs->ops->Mount(mountPoint)) < 0)
+    if((rc = fs->ops->Mount(mountPoint)) < 0)
         goto fail;
 
     Debug("Mount succeeded!\n");
@@ -371,15 +368,15 @@ int Mount(const char *devname, const char *pathPrefix, const char *fstype) {
 
     return 0;
 
-    memfail:
+  memfail:
     rc = ENOMEM;
-    fail:
-    if (mountPoint != 0) {
-        if (mountPoint->pathPrefix != 0)
+  fail:
+    if(mountPoint != 0) {
+        if(mountPoint->pathPrefix != 0)
             Free(mountPoint->pathPrefix);
         Free(mountPoint);
     }
-    if (dev != 0)
+    if(dev != 0)
         Close_Block_Device(dev);
     return rc;
 }
@@ -395,9 +392,6 @@ int Mount(const char *devname, const char *pathPrefix, const char *fstype) {
 int Open(const char *path, int mode, struct File **pFile) {
     int rc = Do_Open(path, mode, pFile, &Do_Open_File);
     /*if (rc != 0) { Print("File open failed with code %d\n", rc); } */
-    Mutex_Lock(&s_vfsLock);
-    (**pFile).refCount = 1;
-    Mutex_Unlock(&s_vfsLock);
     return rc;
 }
 
@@ -412,21 +406,13 @@ int Open(const char *path, int mode, struct File **pFile) {
 int Close(struct File *file) {
     int rc;
 
-    Mutex_Lock(&s_vfsLock);
-    KASSERT(file->ops->Close != 0); /* All filesystems must implement Close(). */
+    KASSERT(file->ops->Close != 0);     /* All filesystems must implement Close(). */
 
-//  TODO_P(PROJECT_FORK, "Manage reference count");
-//    Mutex_Lock(&s_vfsLock);
-    file->refCount--;
+    TODO_P(PROJECT_FORK, "Manage reference count");
+
     rc = file->ops->Close(file);
-    if (rc == 0)
-        if (file->refCount <= 0)
-            if (file) {
-                Free(file);
-                file = 0;
-            }
-
-    Mutex_Unlock(&s_vfsLock);
+    if(rc == 0)
+        Free(file);
     return rc;
 }
 
@@ -442,17 +428,17 @@ int Stat(const char *path, struct VFS_File_Stat *stat) {
     const char *suffix;
     struct Mount_Point *mountPoint;
 
-    if (!Unpack_Path(path, prefix, &suffix))
+    if(!Unpack_Path(path, prefix, &suffix))
         return ENOTFOUND;
 
     /* Get mount point for path */
     Debug("Stat: lookup mount point for %s\n", prefix);
     mountPoint = Lookup_Mount_Point(prefix);
-    if (mountPoint == 0)
+    if(mountPoint == 0)
         return ENOTFOUND;
 
     Debug("Stat: found mount point, dispatching to filesystem\n");
-    if (mountPoint->ops->Stat == 0)
+    if(mountPoint->ops->Stat == 0)
         return EUNSUPPORTED;
     else
         return mountPoint->ops->Stat(mountPoint, suffix, stat);
@@ -467,12 +453,12 @@ int Sync(void) {
     struct Mount_Point *mountPoint;
 
     Mutex_Lock(&s_vfsLock);
-    for (mountPoint = Get_Front_Of_Mount_Point_List(&s_mountPointList);
-         mountPoint != 0; mountPoint = Get_Next_In_Mount_Point_List(mountPoint)) {
-        KASSERT(mountPoint->ops->Sync !=
-                0); /* All filesystems must implement Sync */
+    for(mountPoint = Get_Front_Of_Mount_Point_List(&s_mountPointList);
+        mountPoint != 0;
+        mountPoint = Get_Next_In_Mount_Point_List(mountPoint)) {
+        KASSERT(mountPoint->ops->Sync != 0);    /* All filesystems must implement Sync */
         rc = mountPoint->ops->Sync(mountPoint);
-        if (rc != 0)
+        if(rc != 0)
             break;
     }
     Mutex_Unlock(&s_vfsLock);
@@ -492,20 +478,19 @@ int Sync(void) {
  *
  * Returns: new File object, or null if out of memory
  */
-struct File *Allocate_File(const struct File_Ops *ops, int filePos, int endPos,
-                           void *fsData, int mode,
+struct File *Allocate_File(const struct File_Ops *ops, int filePos,
+                           int endPos, void *fsData, int mode,
                            struct Mount_Point *mountPoint) {
     struct File *file;
 
-    file = (struct File *) Malloc(sizeof(struct File));
-    if (file != 0) {
+    file = (struct File *)Malloc(sizeof(struct File));
+    if(file != 0) {
         file->ops = ops;
         file->filePos = filePos;
         file->endPos = endPos;
         file->fsData = fsData;
         file->mode = mode;
         file->mountPoint = mountPoint;
-        file->refCount = 0;
     }
     return file;
 }
@@ -518,7 +503,7 @@ struct File *Allocate_File(const struct File_Ops *ops, int filePos, int endPos,
  * Returns: 0 if successful, error code (< 0) if not
  */
 int FStat(struct File *file, struct VFS_File_Stat *stat) {
-    if (file->ops->FStat == 0)
+    if(file->ops->FStat == 0)
         return EUNSUPPORTED;
     else
         return file->ops->FStat(file, stat);
@@ -534,15 +519,10 @@ int FStat(struct File *file, struct VFS_File_Stat *stat) {
  *   or error code (< 0) if read fails
  */
 int Read(struct File *file, void *buf, ulong_t len) {
-    if (file->ops->Read == 0)
+    if(file->ops->Read == 0)
         return EUNSUPPORTED;
-    else {
-        int rc;
-//        Mutex_Unlock(&s_vfsLock);
-        rc = file->ops->Read(file, buf, len);
-//        Mutex_Unlock(&s_vfsLock);
-        return rc;
-    }
+    else
+        return file->ops->Read(file, buf, len);
 }
 
 /*
@@ -554,15 +534,10 @@ int Read(struct File *file, void *buf, ulong_t len) {
  * Returns: number of bytes written, or error code (< 0) if read fails
  */
 int Write(struct File *file, void *buf, ulong_t len) {
-    if (file->ops->Write == 0)
+    if(file->ops->Write == 0)
         return EUNSUPPORTED;
-    else {
-        int rc = 0;
-//        Mutex_Lock(&s_vfsLock);
-        rc = file->ops->Write(file, buf, len);
-//        Mutex_Unlock(&s_vfsLock);
-        return rc;
-    }
+    else
+        return file->ops->Write(file, buf, len);
 }
 
 /*
@@ -574,7 +549,7 @@ int Write(struct File *file, void *buf, ulong_t len) {
  *   or error code (< 0) if it fails
  */
 int Seek(struct File *file, ulong_t len) {
-    if (file->ops->Seek == 0)
+    if(file->ops->Seek == 0)
         return EUNSUPPORTED;
     else
         return file->ops->Seek(file, len);
@@ -590,45 +565,46 @@ int Seek(struct File *file, ulong_t len) {
  *     be stored
  * Returns: 0 if successful, error code (< 0) if not
  */
-int Read_Fully(const char *path, void **pBuffer, ulong_t *pLen) {
+int Read_Fully(const char *path, void **pBuffer, ulong_t * pLen) {
     struct File *file = 0;
     struct VFS_File_Stat stat;
     int rc;
     char *buf = 0;
     int numBytesRead;
 
-    if ((rc = Stat(path, &stat)) < 0 || (rc = Open(path, O_READ, &file)) < 0)
+    if((rc = Stat(path, &stat)) < 0 ||
+       (rc = Open(path, O_READ, &file)) < 0)
         goto fail;
-    if (stat.size < 0) {
+    if(stat.size < 0) {
         rc = ENOTFOUND;
         goto fail;
     }
 
-    buf = (char *) Malloc(stat.size);
-    if (buf == 0)
+    buf = (char *)Malloc(stat.size);
+    if(buf == 0)
         goto memfail;
 
     /* Read until buffer is full */
     numBytesRead = 0;
     while (numBytesRead < stat.size) {
         rc = Read(file, buf + numBytesRead, stat.size - numBytesRead);
-        if (rc < 0)
+        if(rc < 0)
             goto fail;
         numBytesRead += rc;
     }
 
     /* Success! */
     Close(file);
-    *pBuffer = (void *) buf;
+    *pBuffer = (void *)buf;
     *pLen = stat.size;
     return 0;
 
-    memfail:
+  memfail:
     rc = ENOMEM;
-    fail:
-    if (file != 0)
+  fail:
+    if(file != 0)
         Close(file);
-    if (buf != 0)
+    if(buf != 0)
         Free(buf);
     return rc;
 }
@@ -645,15 +621,15 @@ int Create_Directory(const char *path) {
     struct Mount_Point *mountPoint;
 
     /* Split path into prefix and suffix */
-    if (!Unpack_Path(path, prefix, &suffix))
+    if(!Unpack_Path(path, prefix, &suffix))
         return ENOTFOUND;
 
     /* Get mount point for path */
     mountPoint = Lookup_Mount_Point(prefix);
-    if (mountPoint == 0)
+    if(mountPoint == 0)
         return ENOTFOUND;
 
-    if (mountPoint->ops->Create_Directory == 0)
+    if(mountPoint->ops->Create_Directory == 0)
         return EUNSUPPORTED;
     else
         return mountPoint->ops->Create_Directory(mountPoint, suffix);
@@ -672,19 +648,20 @@ int Delete(const char *path, bool recursive) {
     struct Mount_Point *mountPoint;
 
     /* Split path into prefix and suffix */
-    if (!Unpack_Path(path, prefix, &suffix))
+    if(!Unpack_Path(path, prefix, &suffix))
         return ENOTFOUND;
 
     /* Get mount point for path */
     mountPoint = Lookup_Mount_Point(prefix);
-    if (mountPoint == 0)
+    if(mountPoint == 0)
         return ENOTFOUND;
 
-    if (mountPoint->ops->Delete == 0)
+    if(mountPoint->ops->Delete == 0)
         return EUNSUPPORTED;
     else
         return mountPoint->ops->Delete(mountPoint, suffix, recursive);
 }
+
 
 /*
  * Rename a file or directory
@@ -701,25 +678,26 @@ int Rename(const char *oldpath, const char *newpath) {
     struct Mount_Point *mountPoint1;
     struct Mount_Point *mountPoint2;
 
+
     /* Split path into prefix and suffix */
-    if (!Unpack_Path(oldpath, prefix1, &suffix1))
+    if(!Unpack_Path(oldpath, prefix1, &suffix1))
         return ENOTFOUND;
 
     /* Get mount point for path */
     mountPoint1 = Lookup_Mount_Point(prefix1);
-    if (mountPoint1 == 0)
+    if(mountPoint1 == 0)
         return ENOTFOUND;
 
-    if (mountPoint1->ops->Rename == 0)
+    if(mountPoint1->ops->Rename == 0)
         return EUNSUPPORTED;
 
     /* Split path into prefix and suffix  fore new name */
-    if (!Unpack_Path(newpath, prefix2, &suffix2))
+    if(!Unpack_Path(newpath, prefix2, &suffix2))
         return ENOTFOUND;
 
     mountPoint2 = Lookup_Mount_Point(prefix2);
     /* can only renmae within a single file system */
-    if (mountPoint1 != mountPoint2)
+    if(mountPoint1 != mountPoint2)
         return EINVALID;
 
     return mountPoint1->ops->Rename(mountPoint1, suffix1, suffix2);
@@ -740,25 +718,26 @@ int Link(const char *oldpath, const char *newpath) {
     struct Mount_Point *mountPoint1;
     struct Mount_Point *mountPoint2;
 
+
     /* Split path into prefix and suffix */
-    if (!Unpack_Path(oldpath, prefix1, &suffix1))
+    if(!Unpack_Path(oldpath, prefix1, &suffix1))
         return ENOTFOUND;
 
     /* Get mount point for path */
     mountPoint1 = Lookup_Mount_Point(prefix1);
-    if (mountPoint1 == 0)
+    if(mountPoint1 == 0)
         return ENOTFOUND;
 
-    if (mountPoint1->ops->Link == 0)
+    if(mountPoint1->ops->Link == 0)
         return EUNSUPPORTED;
 
     /* Split path into prefix and suffix  fore new name */
-    if (!Unpack_Path(newpath, prefix2, &suffix2))
+    if(!Unpack_Path(newpath, prefix2, &suffix2))
         return ENOTFOUND;
 
     mountPoint2 = Lookup_Mount_Point(prefix2);
     /* can only link within a single file system */
-    if (mountPoint1 != mountPoint2)
+    if(mountPoint1 != mountPoint2)
         return EINVALID;
 
     return mountPoint1->ops->Link(mountPoint1, suffix1, suffix2);
@@ -777,12 +756,12 @@ int SymLink(const char *oldpath, const char *newpath) {
     struct Mount_Point *mountPoint2;
 
     /* Split path into prefix and suffix  fore new name */
-    if (!Unpack_Path(newpath, prefix2, &suffix2))
+    if(!Unpack_Path(newpath, prefix2, &suffix2))
         return ENOTFOUND;
 
     mountPoint2 = Lookup_Mount_Point(prefix2);
 
-    if (mountPoint2->ops->SymLink == 0)
+    if(mountPoint2->ops->SymLink == 0)
         return EUNSUPPORTED;
 
     return mountPoint2->ops->SymLink(mountPoint2, oldpath, suffix2);
@@ -830,37 +809,38 @@ int Open_Directory(const char *path, struct File **pDir) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int Read_Entry(struct File *file, struct VFS_Dir_Entry *entry) {
-    if (file->ops->Read_Entry == 0)
+    if(file->ops->Read_Entry == 0)
         return EUNSUPPORTED;
     else
         return file->ops->Read_Entry(file, entry);
 }
 
-/*
- * Get disk properties
+/* 
+ * Get disk properties 
  * Params:
- *  path - a pathname that reaches the correct file system
- *  file_system_block_size - pointer to a value that will become 512, 1024,
- * 2048, 4096. blocks_on_disk - pointer to a value that will become the number
- * of fs sized blocks in the disk
+ *  path - a pathname that reaches the correct file system 
+ *  file_system_block_size - pointer to a value that will become 512, 1024, 2048, 4096.
+ *  blocks_on_disk - pointer to a value that will become the number of 
+ *        fs sized blocks in the disk 
  */
 
-int Disk_Properties(const char *path, unsigned int *block_size,
+int Disk_Properties(const char *path,
+                    unsigned int *block_size,
                     unsigned int *blocks_in_filesystem) {
     char prefix[MAX_PREFIX_LEN + 1];
     const char *suffix;
     struct Mount_Point *mountPoint;
 
     /* Split path into prefix and suffix */
-    if (!Unpack_Path(path, prefix, &suffix))
+    if(!Unpack_Path(path, prefix, &suffix))
         return ENOTFOUND;
 
     /* Get mount point for path */
     mountPoint = Lookup_Mount_Point(prefix);
-    if (mountPoint == 0)
+    if(mountPoint == 0)
         return ENOTFOUND;
 
-    if (mountPoint->ops->Disk_Properties == 0)
+    if(mountPoint->ops->Disk_Properties == 0)
         return EUNSUPPORTED;
     else
         return mountPoint->ops->Disk_Properties(mountPoint, block_size,

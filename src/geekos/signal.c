@@ -36,42 +36,24 @@
 #include <geekos/alarm.h>
 #include <geekos/smp.h>
 
+
 /* Called when signal handling is complete. */
 void Complete_Handler(struct Kernel_Thread *kthread,
                       struct Interrupt_State *state) {
     KASSERT(kthread);
     KASSERT(state);
-    if (Is_User_Interrupt(state)) {
-        struct User_Interrupt_State *userState = (struct User_Interrupt_State *) state;
-        // Pop signal number
-        userState->espUser += 4;
-
-        // Restore old interrupt state
-        Copy_From_User(state, userState->espUser, sizeof(struct Interrupt_State));
-        userState->espUser += sizeof(struct Interrupt_State);
-
-        struct User_Context *context = kthread->userContext;
-        context->busy = false;
-    }
+    TODO_P(PROJECT_SIGNALS,
+           "Complete_Handler cleans up after a signal handler");
 }
 
 int Check_Pending_Signal(struct Kernel_Thread *kthread,
                          struct Interrupt_State *state) {
     KASSERT(kthread);
     KASSERT(state);
-    if (kthread->userContext != 0) {
-        struct User_Context *context = kthread->userContext;
-        int i;
-        for (i = 0; i < MAXSIG + 1; i++)
-            if (context->receivedSignals[i] == true) {
-                if (!context->busy && state->cs != KERNEL_CS) {
-                    context->busy = true;
-                    context->currentSignal = i;
-                    return true;
-                }
-            }
-    }
+
     return 0;
+    TODO_P(PROJECT_SIGNALS,
+           "Check_Pending_Signal returns 1 if this thread has a pending signal");
 }
 
 #if 0
@@ -114,27 +96,5 @@ void Setup_Frame(struct Kernel_Thread *kthread,
     KASSERT(kthread);
     KASSERT(state);
 
-    struct User_Context *context = kthread->userContext;
-    int signalNumber = context->currentSignal;
-    signal_handler signalHandler = kthread->userContext->signalTable[signalNumber];
-    context->receivedSignals[signalNumber] = false;
-    if (signalHandler == SIG_DFL) {
-        Print("Terminated %d.\n", CURRENT_THREAD->pid);
-        Enable_Interrupts();
-        Exit(256 + signalNumber);
-    } else if (signalHandler == SIG_IGN)
-        return;
-    if (Is_User_Interrupt(state)) {
-        struct User_Interrupt_State *userState = (struct User_Interrupt_State *) state;
-        userState->espUser -= sizeof(struct Interrupt_State);
-        Copy_To_User(userState->espUser, state, sizeof(struct Interrupt_State));
-
-        userState->espUser -= 4;
-        Copy_To_User(userState->espUser, &signalNumber, sizeof(int));
-
-        userState->espUser -= 4;
-        Copy_To_User(userState->espUser, &context->trampFunction, sizeof(ulong_t));
-
-        state->eip = (uint_t) signalHandler;
-    }
+    TODO_P(PROJECT_SIGNALS, "Setup_Frame");
 }

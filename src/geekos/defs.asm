@@ -75,7 +75,6 @@ ICW4 equ 0x01		; 8086 mode, no auto-EOI, non-buffered mode,
 ; Keep these up to date with defs.h.
 KERNEL_CS equ 1<<3	; kernel code segment is GDT entry 1
 KERNEL_DS equ 2<<3	; kernel data segment is GDT entry 2
-KERNEL_GS equ 3<<3	; kernel data segment is GDT entry 3
 
 ; Pages for context object and stack for initial kernel thread -
 ; the one we construct for Main().  Keep these up to date with defs.h.

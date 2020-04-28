@@ -24,7 +24,6 @@
  */
 #define KERNEL_CS  (1<<3)
 #define KERNEL_DS  (2<<3)
-#define KERNEL_GS  (3<<3)
 
 /*
  * Pages for initial kernel thread context object and stack.

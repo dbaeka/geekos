@@ -64,6 +64,7 @@ int main() {
 
         rc = Signal(sigpipe_handler, SIGPIPE);
         assert(rc == 0);        /* Signal should succeed */
+
         /* this component (read while > 0) only synchronizes to
            wait for the child when the pipe is blocking, else it
            will likely just terminate quickly, and we'll fall down

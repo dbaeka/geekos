@@ -52,7 +52,6 @@
 #include <geekos/smp.h>
 #include <geekos/io.h>
 #include <geekos/serial.h>
-#include <geekos/percpu.h>
 
 
 /*
@@ -73,8 +72,8 @@
 #define INIT_PROGRAM "/" ROOT_PREFIX "/shell.exe"
 
 
-static void Mount_Root_Filesystem(void);
 
+static void Mount_Root_Filesystem(void);
 static void Spawn_Init_Process(void);
 
 /*
@@ -88,7 +87,6 @@ extern int checkPaging(void);
 /* use this style of declaration to permit not including the .c file
    so that the code doesn't consume space, without editing this file */
 void Init_GFS2() __attribute__ ((weak));
-
 void Init_GFS3() __attribute__ ((weak));
 
 void Hardware_Shutdown() {
@@ -115,11 +113,11 @@ void Hardware_Shutdown() {
 }
 
 void Main(struct Boot_Info *bootInfo) {
-    Init_BSS(); // Zeros out the BSS (global variables area) of the kernel
-    Init_Screen(); //Reset Screen
+    Init_BSS();
+    Init_Screen();
     Init_Mem(bootInfo);
     Init_CRC32();
-    Init_PerCPU(0);
+    TODO_P(PROJECT_PERCPU, "Initialize PERCPU");
     Init_TSS();
 
     /* by modifying begin_int_atomic to autolock if not locked when interrupts are disabled, 
@@ -130,7 +128,9 @@ void Main(struct Boot_Info *bootInfo) {
     Print("Init_SMP\n");
     Init_SMP();
     Print("/Init_SMP\n");
-    Init_Scheduler(0, (void *) KERN_STACK);
+    TODO_P(PROJECT_VIRTUAL_MEMORY_A,
+           "initialize virtual memory page tables.");
+    Init_Scheduler(0, (void *)KERN_STACK);
     Init_Traps();
     Init_Local_APIC(0);
     Init_Timer();
@@ -140,9 +140,9 @@ void Main(struct Boot_Info *bootInfo) {
     /* Init_Floppy(); *//* floppy initialization hangs on virtualbox */
     Init_IDE();
     Init_PFAT();
-    if (Init_GFS2)
+    if(Init_GFS2)
         Init_GFS2();
-    if (Init_GFS3)
+    if(Init_GFS3)
         Init_GFS3();
     Init_GOSFS();
     Init_CFS();
@@ -151,7 +151,7 @@ void Main(struct Boot_Info *bootInfo) {
 
     /* Expect that the global lock is not held. */
     Print("the global lock is %sheld.\n",
-          Kernel_Is_Locked() ? "" : "not ");
+          Kernel_Is_Locked()? "" : "not ");
 
     Release_SMP();
 
@@ -171,11 +171,10 @@ void Main(struct Boot_Info *bootInfo) {
     /* End sound init */
 
     Mount_Root_Filesystem();
-    // Init_VM(bootInfo);
+
     checkPaging();
 
     Set_Current_Attr(ATTRIB(BLACK, GREEN | BRIGHT));
-    Print("Never gonna give you up!\n");
     Print("Welcome to GeekOS!\n");
     Set_Current_Attr(ATTRIB(BLACK, GRAY));
 
@@ -193,10 +192,11 @@ void Main(struct Boot_Info *bootInfo) {
 }
 
 
+
 static void Mount_Root_Filesystem(void) {
-    if (Mount(ROOT_DEVICE, ROOT_PREFIX, "pfat") != 0) {
+    if(Mount(ROOT_DEVICE, ROOT_PREFIX, "pfat") != 0) {
         Print("Failed to mount /" ROOT_PREFIX " filesystem as pfat.\n");
-        if (Mount(ROOT_DEVICE, ROOT_PREFIX, "gfs3") != 0) {
+        if(Mount(ROOT_DEVICE, ROOT_PREFIX, "gfs3") != 0) {
             Print("Failed to mount /" ROOT_PREFIX
                   " filesystem as gfs3.\n");
             return;
@@ -204,6 +204,10 @@ static void Mount_Root_Filesystem(void) {
     }
     Print("Mounted /" ROOT_PREFIX " filesystem!\n");
 }
+
+
+
+
 
 
 static void Spawn_Init_Process(void) {
@@ -215,7 +219,7 @@ static void Spawn_Init_Process(void) {
     rc = Spawn_Foreground(INIT_PROGRAM, INIT_PROGRAM, &initProcess);
     // Print("... spawned\n");
 
-    if (rc != 0) {
+    if(rc != 0) {
         Print("Failed to spawn init process: error code = %d\n", rc);
     } else {
         /* Wait for it to exit */

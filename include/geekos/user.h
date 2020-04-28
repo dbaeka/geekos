@@ -64,7 +64,7 @@ struct User_Context {
      * describing the process's memory.
      */
     struct Segment_Descriptor ldt[NUM_USER_LDT_ENTRIES];
-    struct Segment_Descriptor *ldtDescriptor[8];
+    struct Segment_Descriptor *ldtDescriptor;
 
     /* The memory space used by the process. */
     char *memory;
@@ -103,17 +103,10 @@ struct User_Context {
 
     char name[MAX_PROC_NAME_SZB];
 
+
+
+
     mappedRegion_t *mappedRegions;
-
-    void *signalTable[MAXSIG+1];
-
-    bool receivedSignals[MAXSIG+1];
-
-    bool busy;
-
-    int currentSignal;
-
-    void *trampFunction;
 };
 
 

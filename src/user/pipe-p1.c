@@ -20,31 +20,14 @@
 int main() {
     int i;
     int read_fd, write_fd;
-    int read_bytes, written_bytes = 0, pipe_retval;
+    int read_bytes, written_bytes, pipe_retval;
     char buf[256];
 
     /* Print("calling pipe"); */
     pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-    pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-    pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-    pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-    pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-    pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-    pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-    pipe_retval = Pipe(&read_fd, &write_fd);
-    Print("%d %d\n", read_fd, write_fd);
-  //  Print("%d %d", read_fd, write_fd);
-    Print("%d\n", pipe_retval);
-    assert(pipe_retval >= 0);
+    assert(pipe_retval == 0);
 
-    for (i = 0; i < 5; i++) {
+    for(i = 0; i < 5; i++) {
         written_bytes = Write(write_fd, "beep", 4);
         assert(written_bytes == 4);
         read_bytes = Read(read_fd, buf, 256);
@@ -52,9 +35,6 @@ int main() {
         assert(read_bytes == 4);
         assert(strncmp(buf, "beep", 4) == 0);
     }
-
-
-
 
     Close(write_fd);
 
@@ -67,6 +47,6 @@ int main() {
     assert(written_bytes <= -1);
     read_bytes = Read(read_fd, buf, 256);
     assert(read_bytes <= -1);
-    Print("\nThe end");
+
     return 0;
 }

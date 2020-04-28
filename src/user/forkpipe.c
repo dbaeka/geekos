@@ -41,9 +41,7 @@ int main() {
     if(child_pid > 0) {
         Print("parent n=%d, global=%d, child_pid=%d, my_pid=%d\n",
               n, global, child_pid, Get_PID());
-        //Print("okay2");
         while ((read_bytes = Read(read_fd, buf, 4)) == EWOULDBLOCK) {
-            //Print("okay3");
             Get_PID();
             Get_PID();
         }
@@ -58,7 +56,6 @@ int main() {
         assert(written_bytes == EPIPE);
         Close(write_fd);
     } else if(child_pid == 0) {
-      //  Print("okay1");
         Close(read_fd);
         Print("child n=%d, global=%d, child_pid=%d, my_pid=%d\n",
               n, global, child_pid, Get_PID());

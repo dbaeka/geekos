@@ -24,9 +24,8 @@ int main() {
     int child_pid = 0;
     Print("original\n");
     child_pid = Fork();
-    global ++;
     n++;
-  //  global ++;
+    global ++;
     if(child_pid > 0) {
         Print("parent n=%d, global=%d, child_pid=%d, my_pid=%d\n", n,
               global, child_pid, Get_PID());

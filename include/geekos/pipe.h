@@ -15,22 +15,7 @@
 extern const struct File_Ops Pipe_Read_Ops;
 extern const struct File_Ops Pipe_Write_Ops;
 
-#define MAX_PIPE_BUFFER 32768 //32KB buffer size
-
-struct Pipe {
-    int num_readers;
-    int num_writers;
-    ulong_t rPos;
-    ulong_t wPos;
-    void *data_buffer;
-    ulong_t bufferLength;
-};
-
-
 int Pipe_Create(struct File **read_file, struct File **write_file);
-
 int Pipe_Read(struct File *f, void *buf, ulong_t numBytes);
-
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes);
-
 int Pipe_Close(struct File *f);

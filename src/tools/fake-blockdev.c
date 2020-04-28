@@ -177,7 +177,6 @@ struct File *Allocate_File(const struct File_Ops *ops, int filePos,
     ret->fsData = fsData;
     ret->mode = mode;
     ret->mountPoint = mountPoint;
-    ret->refCount = 0;
     return ret;
 }
 
