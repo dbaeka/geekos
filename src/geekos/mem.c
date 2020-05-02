@@ -27,6 +27,7 @@
 #include <geekos/string.h>
 #include <geekos/paging.h>
 #include <geekos/mem.h>
+#include <geekos/user.h>
 #include <geekos/smp.h>
 #include <geekos/projects.h>
 
@@ -60,6 +61,11 @@ extern int debugFaults;
  */
 static struct Page_List s_freeList;
 
+static Spin_Lock_t clock_hand_lock;
+
+
+static uint_t clockHand;
+
 /*
  * Total number of physical pages.
  */
@@ -76,12 +82,12 @@ static void Add_Page_Range(ulong_t start, ulong_t end, int flags) {
     KASSERT(Is_Page_Multiple(end));
     KASSERT(start < end);
 
-    for(addr = start; addr < end; addr += PAGE_SIZE) {
+    for (addr = start; addr < end; addr += PAGE_SIZE) {
         struct Page *page = Get_Page(addr);
 
         page->flags = flags;
 
-        if(flags == PAGE_AVAIL) {
+        if (flags == PAGE_AVAIL) {
             /* Add the page to the freelist */
             Unchecked_Add_To_Back_Of_Page_List(&s_freeList, page);
 
@@ -114,15 +120,15 @@ extern char end;
  * Enables the use of Alloc_Page() and Free_Page() functions.
  */
 void Init_Mem(struct Boot_Info *bootInfo) {
-    if(!bootInfo->memSizeKB) {
+    if (!bootInfo->memSizeKB) {
         /* look through memsize for a region starting at 0x100000 */
         int i;
 
-        for(i = 0; i < bootInfo->numMemRegions; i++) {
-            if((bootInfo->memRegions[i].baseAddr_low == 0x100000) &&
-               (bootInfo->memRegions[i].type == 1)) {
+        for (i = 0; i < bootInfo->numMemRegions; i++) {
+            if ((bootInfo->memRegions[i].baseAddr_low == 0x100000) &&
+                (bootInfo->memRegions[i].type == 1)) {
                 bootInfo->memSizeKB =
-                    bootInfo->memRegions[i].length_low / 1024;
+                        bootInfo->memRegions[i].length_low / 1024;
             }
         }
         bootInfo->memSizeKB += 0x1000;
@@ -150,22 +156,23 @@ void Init_Mem(struct Boot_Info *bootInfo) {
      * keeping track of them.
      */
     pageListAddr = (HIGHMEM_START + KERNEL_HEAP_SIZE);
-    if(pageListAddr >= endOfMem) {
+    if (pageListAddr >= endOfMem) {
         Print
-            ("there is no memory for the page list.  physical memory is too small for the heap %u, bytes after %u. endOfMem=%lu .",
-             KERNEL_HEAP_SIZE, HIGHMEM_START, endOfMem);
+                ("there is no memory for the page list.  physical memory is too small for the heap %u, bytes after %u. endOfMem=%lu .",
+                 KERNEL_HEAP_SIZE, HIGHMEM_START, endOfMem);
         KASSERT0(pageListAddr < endOfMem,
                  "there is no memory for the page list.  physical memory is too small for the heap.");
     }
-    g_pageList = (struct Page *)pageListAddr;
+    g_pageList = (struct Page *) pageListAddr;
     pageListEnd = Round_Up_To_Page(pageListAddr + numPageListBytes);
 
     // clear page list
-    memset((void *)g_pageList, '\0',
+    memset((void *) g_pageList, '\0',
            (pageListEnd - (ulong_t) g_pageList));
 
-    kernEnd = Round_Up_To_Page((int)&end);
+    kernEnd = Round_Up_To_Page((int) &end);
     g_numPages = numPages;
+    clockHand = 0;
 
     /* would be clearly bad: */
     KASSERT(kernEnd < ISA_HOLE_START);
@@ -183,9 +190,9 @@ void Init_Mem(struct Boot_Info *bootInfo) {
 
     /* make sure BSS ends before our first structure */
     // extern char BSS_END, INITSEG;
-    Print("BSS = %x\n", (int)&BSS_END);
+    Print("BSS = %x\n", (int) &BSS_END);
     Print("start kern info = %x\n", bootInfo->startKernInfo);
-    KASSERT0(((int)&BSS_END) < bootInfo->startKernInfo,
+    KASSERT0(((int) &BSS_END) < bootInfo->startKernInfo,
              "end of kernel BSS segment is after the start of, need a smaller kernel");
 
     /*
@@ -209,7 +216,7 @@ void Init_Mem(struct Boot_Info *bootInfo) {
     Add_Page_Range(HIGHMEM_START, HIGHMEM_START + KERNEL_HEAP_SIZE,
                    PAGE_HEAP);
     Add_Page_Range(pageListAddr, pageListEnd, PAGE_KERN);
-    if(pageListEnd > endOfMem) {
+    if (pageListEnd > endOfMem) {
         KASSERT0(pageListEnd < endOfMem,
                  "there is no memory after the page list.  physical memory is too small.");
         /* this would fail at the next line (add_page_range), so this kassert just fails early. */
@@ -220,8 +227,8 @@ void Init_Mem(struct Boot_Info *bootInfo) {
     Init_Heap(HIGHMEM_START, KERNEL_HEAP_SIZE);
 
     Print
-        ("%uKB memory detected, %u pages in freelist, %d bytes in kernel heap\n",
-         bootInfo->memSizeKB, g_freePageCount, KERNEL_HEAP_SIZE);
+            ("%uKB memory detected, %u pages in freelist, %d bytes in kernel heap\n",
+             bootInfo->memSizeKB, g_freePageCount, KERNEL_HEAP_SIZE);
 }
 
 /*
@@ -252,17 +259,17 @@ static void *Alloc_Page_Frame(void) {
     /* See if we have a free page */
     /* Remove the first page on the freelist. */
     page = Remove_From_Front_Of_Page_List(&s_freeList);
-    if(page) {
+    if (page) {
         KASSERT((page->flags & PAGE_ALLOCATED) == 0);
         /* Mark page as having been allocated. */
         page->flags |= PAGE_ALLOCATED;
         KASSERT(!(page->flags & PAGE_PAGEABLE));
         g_freePageCount--;
-        result = (void *)Get_Page_Address(page);
+        result = (void *) Get_Page_Address(page);
     }
 
 
-    if(result) {
+    if (result) {
         memset(result, '\0', 4096);
     }
     return result;
@@ -272,21 +279,40 @@ static void *Alloc_Page_Frame(void) {
  * Choose a page to evict.
  * Returns null if no pages are available.
  */
-static struct Page *Find_Page_To_Page_Out() {
+struct Page *Find_Page_To_Page_Out() {
     unsigned int i;
-    struct Page *curr, *best;
-    best = NULL;
-    for(i = 0; i < g_numPages; i++) {
-        if((g_pageList[i].flags & PAGE_PAGEABLE) &&
-           (g_pageList[i].flags & PAGE_ALLOCATED)) {
-            if(!best)
-                best = &g_pageList[i];
-            curr = &g_pageList[i];
-            if((curr->clock < best->clock) &&
-               (curr->flags & PAGE_PAGEABLE)) {
-                best = curr;
+    struct User_Context *userContext = CURRENT_THREAD->userContext;
+    struct Page *curr = NULL, *best = NULL;
+    i = clockHand;
+    while (best == NULL) {
+        if (g_pageList[i].context) {
+            if (!g_pageList[i].entry->accessed) {
+                if (g_pageList[i].flags & PAGE_PAGEABLE) {
+                    curr = &g_pageList[i]; // get current page
+                    // if page belongs to process
+                    if (curr->context == userContext) {
+                        if (userContext->numPages > 10) {
+                            best = curr;
+                        }
+                    } else { // page belongs to other process
+                        if (userContext->numPages < 1000) {
+                            best = curr;
+                        }
+                    }
+                }
+            } else {
+                Spin_Lock(&clock_hand_lock);
+                clockHand = i;
+                Spin_Unlock(&clock_hand_lock);
+                g_pageList[i].entry->accessed = 0;
+            }
+            if ((g_pageList[i].flags & PAGE_PAGEABLE) == 0) {
+                Spin_Lock(&clock_hand_lock);
+                clockHand = i;
+                Spin_Unlock(&clock_hand_lock);
             }
         }
+        i = (i + 1) % g_numPages;
     }
     return best;
 }
@@ -308,14 +334,14 @@ void Unlock_Page(struct Page *page) {
        is freed, the page is not returned to the free list, since some thread
        is still busy evicting it. */
 
-    if(!(page->flags & PAGE_ALLOCATED)) {
+    if (!(page->flags & PAGE_ALLOCATED)) {
         /* clear the PTE this used to refer to */
         page->entry = 0;
 
-        page->context = (void *)0xbad10000;
+        page->context = (void *) 0xbad10000;
 
         /* Put the page back on the freelist */
-        if(debugFreeList) {
+        if (debugFreeList) {
             Add_To_Back_Of_Page_List(&s_freeList, page);
         } else {
             Unchecked_Add_To_Back_Of_Page_List(&s_freeList, page);
@@ -338,7 +364,7 @@ void Unlock_Page(struct Page *page) {
  * @param vaddr virtual address where page will be mapped
  *   in user address space
  */
-static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
+static void *Alloc_Or_Reclaim_Page(pte_t *entry, ulong_t vaddr,
                                    bool pinnedPage) {
     void *paddr;
     struct Page *page;
@@ -351,7 +377,7 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
 
     KASSERT(Is_Page_Multiple(vaddr));
 
-    if(paddr != 0) {
+    if (paddr != 0) {
         page = Get_Page((ulong_t) paddr);
         KASSERT((page->flags & PAGE_PAGEABLE) == 0);
     } else {
@@ -359,7 +385,7 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
         Debug("About to hunt for a page to page out\n");
         page = Find_Page_To_Page_Out();
         KASSERT(page->flags & PAGE_PAGEABLE);
-        paddr = (void *)Get_Page_Address(page);
+        paddr = (void *) Get_Page_Address(page);
         Debug("Selected page at addr %p (age = %d)\n", paddr,
               page->clock);
 
@@ -369,10 +395,18 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
         /* Lock the page so it cannot be freed while we're writing */
         Debug("locking page at %p for writing\n", paddr);
         Lock_Page(page);
-        TODO_P(PROJECT_VIRTUAL_MEMORY_B,
-               "write page out to backing storage");
-        TODO_P(PROJECT_MMAP, "write page out to backing storage");
+        int index = Find_Space_On_Paging_File();
+        if (index < 0) {
+            Unlock_Page(page);
+            goto done;
+        }
+        Write_To_Paging_File(paddr, page->vaddr, index);
+        page->context->numPages--;
+        page->entry->present = 0;
+        page->entry->pageBaseAddr = index;
+        page->entry->kernelInfo = KINFO_PAGE_ON_DISK;
 
+        TODO_P(PROJECT_MMAP, "write page out to backing storage");
 
 
         Unlock_Page(page);
@@ -382,8 +416,9 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
         Flush_TLB();
     }
 
+    done:
     /* Fill in accounting information for page */
-    if(pinnedPage) {
+    if (pinnedPage) {
         page->flags &= ~(PAGE_PAGEABLE);
         page->entry = NULL;     /* will not appear in a page table, since it's not a pageable page. */
         page->vaddr = 0;        /* has no virtual address */
@@ -435,7 +470,7 @@ void *Alloc_Page(void) {
  * @param vaddr virtual address where page will be mapped
  *   in user address space
  */
-void *Alloc_Pageable_Page(pte_t * entry, ulong_t vaddr) {
+void *Alloc_Pageable_Page(pte_t *entry, ulong_t vaddr) {
     void *ret = Alloc_Or_Reclaim_Page(entry, vaddr, false);
 
     return ret;
@@ -474,7 +509,7 @@ void Free_Page(void *pageAddr) {
 
     /* When a page is locked, don't free it just let other thread know its not needed 
        by clearing PAGE_ALLOCATED */
-    if(page->flags & PAGE_LOCKED) {
+    if (page->flags & PAGE_LOCKED) {
         page->entry = 0;
         page->context = NULL;
     } else {

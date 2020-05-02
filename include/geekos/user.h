@@ -95,6 +95,10 @@ struct User_Context {
     /* Initial stack pointer */
     ulong_t stackPointerAddr;
 
+    ulong_t stackLimit;
+
+    int numPages;
+
     /*
      * May use this in future to allow multiple threads
      * in the same user context

@@ -12,7 +12,7 @@ include Makefile.common
 HOST := "localhost"
 
 QEMU_BIN ?= $(shell which qemu-system-i386 || which qemu) 
-MEM ?= 512
+MEM ?= 1024
 QEMU ?= $(QEMU_BIN) -smp 2 -icount 4 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501  -m $(MEM) -debugcon file:output.log -serial stdio
 VALGRIND ?= valgrind --tool=memcheck --leak-check=full --log-file=qemu.log
 # to use COM2 on stdio, omit -serial stdio and add: 

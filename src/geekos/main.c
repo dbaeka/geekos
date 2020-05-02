@@ -172,6 +172,8 @@ void Main(struct Boot_Info *bootInfo) {
 
     Mount_Root_Filesystem();
 
+    Init_Paging();
+
     checkPaging();
 
     Set_Current_Attr(ATTRIB(BLACK, GREEN | BRIGHT));

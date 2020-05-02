@@ -35,7 +35,7 @@ extern Spin_Lock_t kthreadLock;
 
 extern int CPU_Count;
 
-#define DEFAULT_USER_STACK_SIZE 8192
+#define DEFAULT_USER_STACK_SIZE 0
 #define USER_VM_SIZE 0x70000000
 #define UNMAP_ADDR(x)   (((unsigned int) (x)) << 12)
 
@@ -74,6 +74,12 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
 
     if (context == 0 || context->memory == 0)
         goto fail;
+
+    /*
+     * Fill user memory with zeroes;
+     * leaving it uninitialized is a potential security flaw
+     */
+//    memset(context->memory, '\0', size);
 
     context->size = USER_LINSIZE;
 
@@ -114,7 +120,6 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     /* Nobody is using this user context yet */
     context->refCount = 0;
 
-    context->numPages = 0;
 
     /* Success! */
     return context;
@@ -148,6 +153,7 @@ void protectPages(struct User_Context *userContext, ulong_t begin_user_dir, ulon
         if (pageDir->present) {
             pte_t *pageTable = (pte_t *) ((ulong_t) UNMAP_ADDR(pageDir->pageTableBaseAddr));
             if (pageTable[pTableIdx].present) {
+//                struct Page *page = (struct Page *) UNMAP_ADDR((ulong_t) pageTable[pTableIdx].pageBaseAddr);
                 struct Page *page = Get_Page(UNMAP_ADDR((ulong_t) pageTable[pTableIdx].pageBaseAddr));
                 page->flags = (isLock) ? (page->flags & ~PAGE_PAGEABLE) : (page->flags | PAGE_PAGEABLE);
             }
@@ -174,6 +180,8 @@ void Destroy_User_Context(struct User_Context *userContext) {
     /* Free the context's LDT descriptor */
     ulong_t i;
     Disable_Interrupts();
+
+
     pde_t *pageDir = userContext->pageDir;
 
     ulong_t lastUserSpaceAddr = Round_Up_To_Page((ulong_t) userContext->memory + userContext->size);
@@ -239,7 +247,6 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
 
     ulong_t i;//, j;
     int k;
-    int numPages = 0;
     ulong_t maxva = 0;
     unsigned numArgs;
     ulong_t argBlockSize;
@@ -262,20 +269,26 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
      * Now we can determine the size of the memory block needed
      * to run the process.
      */
-    size = Round_Up_To_Page(maxva);
+    size = Round_Up_To_Page(maxva); // + DEFAULT_USER_STACK_SIZE;
     argBlockAddr = Round_Down_To_Page(USER_VM_SIZE - argBlockSize - PAGE_SIZE);
     stackLimit = argBlockAddr - DEFAULT_USER_STACK_SIZE;
-
+    // size;
+    // size += argBlockSize;
 
     if (size > USER_VM_SIZE)
         return ENOMEM;
+
+    //TODO; might need to check argblocksize
+
+//    ulong_t numPages = (size / PAGE_SIZE) + 1;
 
     /* Create User_Context */
     userContext = Create_User_Context(size);
     if (userContext == 0)
         return -1;
 
-    ulong_t begin_user_dir = (ulong_t) userContext->memory;
+    ulong_t begin_user_dir = (ulong_t) userContext->memory; //PAGE_DIRECTORY_INDEX((ulong_t) userContext->memory);
+//    ulong_t numPageTables = numPages / NUM_PAGE_TABLE_ENTRIES + 1;
 
     for (i = begin_user_dir; i < (begin_user_dir + size); i += PAGE_SIZE) {
         ulong_t pDirIdx = PAGE_DIRECTORY_INDEX((ulong_t) i);
@@ -287,32 +300,29 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
             Identity_Map_Page(pageDir, (uint_t) pageTable, VM_USER | VM_READ | VM_WRITE);
             if (PAGE_ALIGNED_ADDR(i - (ulong_t) userContext->memory) != 0) {
                 void *pageMem = Alloc_Pageable_Page(&pageTable[pTableIdx], i - (ulong_t) userContext->memory);
+//                memset(pageMem, 0, PAGE_SIZE * sizeof(struct Page));
                 if (pageMem == 0)
                     return ENOMEM;
                 pageTable[pTableIdx].pageBaseAddr = PAGE_ALIGNED_ADDR((uint_t) pageMem);
                 pageTable[pTableIdx].flags = VM_USER | VM_READ | VM_WRITE;
                 pageTable[pTableIdx].present = 1;
-                struct Page *page = Get_Page((ulong_t) pageMem);
-                page->context = userContext;
             }
         } else {
             pte_t *pageTable = (pte_t *) ((ulong_t) UNMAP_ADDR(pageDir->pageTableBaseAddr));
             void *pageMem = Alloc_Pageable_Page(&pageTable[pTableIdx], i - (ulong_t) userContext->memory);
+//            memset(pageMem, 0, PAGE_SIZE * sizeof(struct Page));
             if (pageMem == 0)
                 return ENOMEM;
             pageTable[pTableIdx].pageBaseAddr = PAGE_ALIGNED_ADDR((uint_t) pageMem);
             pageTable[pTableIdx].flags = VM_USER | VM_READ | VM_WRITE;
             pageTable[pTableIdx].present = 1;
-            struct Page *page = Get_Page((ulong_t) pageMem);
-            page->context = userContext;
         }
-        numPages++;
     }
 
+//    ulong_t tm
     /* Load segment data into memory */
     pde_t *oldPDBR = Get_PDBR();
     Set_PDBR((void *) userContext->pageDir);
-
     for (k = 0; k < exeFormat->numSegments; ++k) {
         struct Exe_Segment *segment = &exeFormat->segmentList[k];
         ulong_t start = (ulong_t) userContext->memory + segment->startAddress;
@@ -334,9 +344,8 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
             }
         }
     }
+//    protectPages(userContext, begin_user_dir, (begin_user_dir + numPageTables), numPages, false);
     Set_PDBR((void *) oldPDBR);
-
-    // Load stack and what argblock
 
     begin_user_dir = (ulong_t) userContext->memory + stackLimit;
     for (i = begin_user_dir; i < (begin_user_dir + DEFAULT_USER_STACK_SIZE + PAGE_SIZE); i += PAGE_SIZE) {
@@ -349,36 +358,31 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
             Identity_Map_Page(pageDir, (uint_t) pageTable, VM_USER | VM_READ | VM_WRITE);
             if (PAGE_ALIGNED_ADDR(i - (ulong_t) userContext->memory) != 0) {
                 void *pageMem = Alloc_Pageable_Page(&pageTable[pTableIdx], i - (ulong_t) userContext->memory);
+//                memset(pageMem, 0, PAGE_SIZE * sizeof(struct Page));
                 if (pageMem == 0)
                     return ENOMEM;
                 pageTable[pTableIdx].pageBaseAddr = PAGE_ALIGNED_ADDR((uint_t) pageMem);
                 pageTable[pTableIdx].flags = VM_USER | VM_READ | VM_WRITE;
                 pageTable[pTableIdx].present = 1;
-                struct Page *page = Get_Page((ulong_t) pageMem);
-                page->context = userContext;
             }
         } else {
             pte_t *pageTable = (pte_t *) ((ulong_t) UNMAP_ADDR(pageDir->pageTableBaseAddr));
             void *pageMem = Alloc_Pageable_Page(&pageTable[pTableIdx], i - (ulong_t) userContext->memory);
+//            memset(pageMem, 0, PAGE_SIZE * sizeof(struct Page));
             if (pageMem == 0)
                 return ENOMEM;
             pageTable[pTableIdx].pageBaseAddr = PAGE_ALIGNED_ADDR((uint_t) pageMem);
             pageTable[pTableIdx].flags = VM_USER | VM_READ | VM_WRITE;
             pageTable[pTableIdx].present = 1;
-            struct Page *page = Get_Page((ulong_t) pageMem);
-            page->context = userContext;
         }
-        numPages++;
     }
 
     Set_PDBR((void *) userContext->pageDir);
     /* Format argument block */
-    protectPages(userContext, (ulong_t) userContext->memory + argBlockAddr,
-                 (ulong_t) userContext->memory + argBlockAddr + argBlockSize, true);
+    protectPages(userContext,(ulong_t) userContext->memory + argBlockAddr, (ulong_t )userContext->memory + argBlockAddr + argBlockSize, true);
     Format_Argument_Block(userContext->memory + argBlockAddr, numArgs,
                           argBlockAddr, command);
-    protectPages(userContext, (ulong_t) userContext->memory + argBlockAddr,
-                 (ulong_t) userContext->memory + argBlockAddr + argBlockSize, false);
+    protectPages(userContext, (ulong_t)userContext->memory + argBlockAddr,(ulong_t)userContext->memory + argBlockAddr + argBlockSize, false);
     Set_PDBR((void *) oldPDBR);
     /* Fill in code entry point */
     userContext->entryAddr = exeFormat->entryAddr;
@@ -390,7 +394,7 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
     userContext->argBlockAddr = argBlockAddr;
     userContext->stackLimit = stackLimit;
     userContext->stackPointerAddr = argBlockAddr;
-    userContext->numPages = numPages;
+
 
     *pUserContext = userContext;
     return 0;
@@ -443,7 +447,9 @@ bool Copy_From_User(void *destInKernel, ulong_t srcInUser,
         return false;
     pde_t *oldPDBR = Get_PDBR();
     Set_PDBR((void *) current->pageDir);
+//    ulong_t numPages = numBytes / PAGE_SIZE;
     ulong_t begin_user_dir = (ulong_t) current->memory + srcInUser;
+//    ulong_t numPageTables = numPages / NUM_PAGE_TABLE_ENTRIES + 1;
     protectPages(current, begin_user_dir, (begin_user_dir + numBytes), true);
     memcpy(destInKernel, User_To_Kernel(current, srcInUser), numBytes);
     protectPages(current, begin_user_dir, (begin_user_dir + numBytes), false);
@@ -469,7 +475,9 @@ bool Copy_To_User(ulong_t destInUser, const void *srcInKernel,
         return false;
     pde_t *oldPDBR = Get_PDBR();
     Set_PDBR((void *) current->pageDir);
+//    ulong_t numPages = numBytes / PAGE_SIZE;
     ulong_t begin_user_dir = (ulong_t) current->memory + destInUser;
+//    ulong_t numPageTables = numPages / NUM_PAGE_TABLE_ENTRIES + 1;
     protectPages(current, begin_user_dir, begin_user_dir + numBytes, true);
     memcpy(User_To_Kernel(current, destInUser), srcInKernel, numBytes);
     protectPages(current, begin_user_dir, begin_user_dir + numBytes, false);

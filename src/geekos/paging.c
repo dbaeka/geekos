@@ -50,6 +50,13 @@ static pde_t *pageDirectory;
  */
 int debugFaults = 0;
 #define Debug(args...) if (debugFaults) Print(args)
+#define SECTORS_PER_PAGE (PAGE_SIZE / SECTOR_SIZE)
+
+static struct Paging_Device *pagingDevice;
+
+static char *swapMap;
+static uint_t totalPage;
+static ulong_t startSector;
 
 /* address of local APIC - generally at the default address */
 static char *const APIC_Addr = (char *) 0xFEE00000;
@@ -124,11 +131,55 @@ union type_pun_workaround {
     /* Get the fault code */
     tpw.errorCode = state->errorCode;
     faultCode = tpw.faultCode;
-    // faultCode = *((faultcode_t *) &(state->errorCode));
 
     /* rest of your handling code here */
-    TODO_P(PROJECT_VIRTUAL_MEMORY_B, "handle page faults");
 
+    struct User_Context *userContext = CURRENT_THREAD->userContext;
+
+    if (faultCode.userModeFault) {
+        ulong_t stackLimit = (ulong_t) userContext->memory + userContext->stackLimit;
+        long diff = stackLimit - address;
+        ulong_t pDirIdx = PAGE_DIRECTORY_INDEX((ulong_t) address);
+        ulong_t pTableIdx = PAGE_TABLE_INDEX((ulong_t) address);
+        pde_t *pageDir = &userContext->pageDir[pDirIdx];
+        if (pageDir->present) {
+            pte_t *pageTable = (pte_t *) ((ulong_t) UNMAP_ADDR(pageDir->pageTableBaseAddr));
+            if (pageTable[pTableIdx].present) {  // page exists to be read or written so why fault?
+
+            } else { // not present
+                if (pageTable[pTableIdx].kernelInfo == KINFO_PAGE_ON_DISK) { // is it on disk?
+                    uint_t index = pageTable[pTableIdx].pageBaseAddr;
+                    Enable_Interrupts();
+                    void *pageMem = Alloc_Pageable_Page(&pageTable[pTableIdx], Round_Down_To_Page(address));
+                    Disable_Interrupts();
+                    struct Page *page = Get_Page((ulong_t) pageMem);
+                    page->flags &= ~(PAGE_PAGEABLE);
+                    Read_From_Paging_File(pageMem, address, index);
+                    page->flags |= PAGE_PAGEABLE;
+                    page->entry->present = 1;
+                    page->context->numPages++;
+                    page->entry->pageBaseAddr = PAGE_ALIGNED_ADDR((uint_t) pageMem);
+                    page->entry->kernelInfo = 0;
+                    return;
+                } else { // need to create?
+                    if (diff / PAGE_SIZE == 0) {// stack can be increased by a page
+                        stackLimit -= PAGE_SIZE;
+                        Enable_Interrupts();
+                        void *pageMem = Alloc_Pageable_Page(&pageTable[pTableIdx], Round_Down_To_Page(address));
+                        Disable_Interrupts();
+                        if (pageMem == 0)
+                            goto error;
+                        pageTable[pTableIdx].pageBaseAddr = PAGE_ALIGNED_ADDR((uint_t) pageMem);
+                        pageTable[pTableIdx].flags = VM_USER | VM_READ | VM_WRITE;
+                        pageTable[pTableIdx].present = 1;
+                        userContext->stackLimit = stackLimit - (ulong_t) userContext->memory;
+                        userContext->numPages++;
+                        return;
+                    }
+                }
+            }
+        }
+    }
     TODO_P(PROJECT_MMAP, "handle mmap'd page faults");
 
 
@@ -231,8 +282,13 @@ void Init_Secondary_VM() {
  * is called, to ensure that the paging file is available.
  */
 void Init_Paging(void) {
-    TODO_P(PROJECT_VIRTUAL_MEMORY_B,
-           "Initialize paging file data structures");
+    pagingDevice = Get_Paging_Device();
+    if (pagingDevice == NULL)
+        return;
+    totalPage = pagingDevice->numSectors / SECTORS_PER_PAGE;
+    swapMap = (char *) Malloc(totalPage);
+    memset(swapMap, 0, sizeof(char) * totalPage);
+    startSector = pagingDevice->startSector;
 }
 
 /* guards your structure for tracking free space on the paging file. */
@@ -246,10 +302,15 @@ static Spin_Lock_t s_free_space_spin_lock;
  */
 int Find_Space_On_Paging_File(void) {
     unsigned int retval;
+    uint_t i;
     int iflag = Begin_Int_Atomic();
     Spin_Lock(&s_free_space_spin_lock);
-    TODO_P(PROJECT_VIRTUAL_MEMORY_B, "Find free page in paging file");
-    retval = EUNSUPPORTED;
+    retval = -1;
+    for (i = 0; i < totalPage; i++)
+        if (swapMap[i] == 0) {
+            retval = i;
+            break;
+        }
     Spin_Unlock(&s_free_space_spin_lock);
     End_Int_Atomic(iflag);
     return retval;
@@ -263,7 +324,7 @@ int Find_Space_On_Paging_File(void) {
 void Free_Space_On_Paging_File(int pagefileIndex) {
     int iflag = Begin_Int_Atomic();
     Spin_Lock(&s_free_space_spin_lock);
-    TODO_P(PROJECT_VIRTUAL_MEMORY_B, "Free page in paging file");
+    swapMap[pagefileIndex] = 0;
     Spin_Unlock(&s_free_space_spin_lock);
     End_Int_Atomic(iflag);
 }
@@ -280,7 +341,12 @@ void Write_To_Paging_File(void *paddr, ulong_t vaddr, int pagefileIndex) {
     struct Page *page = Get_Page((ulong_t) paddr);
     KASSERT(!(page->flags & PAGE_PAGEABLE));    /* Page must be pageable! */
     KASSERT(page->flags & PAGE_LOCKED); /* Page must be locked! */
-    TODO_P(PROJECT_VIRTUAL_MEMORY_B, "Write page data to paging file");
+    int i;
+    for (i = 0; i < SECTORS_PER_PAGE; i++) {
+        int blockNum = pagefileIndex * SECTORS_PER_PAGE + i + (pagingDevice->startSector);
+        Block_Write(pagingDevice->dev, blockNum, paddr + i * SECTOR_SIZE);
+    }
+    swapMap[pagefileIndex] = 1;
 }
 
 /**
@@ -295,7 +361,12 @@ void Write_To_Paging_File(void *paddr, ulong_t vaddr, int pagefileIndex) {
 void Read_From_Paging_File(void *paddr, ulong_t vaddr, int pagefileIndex) {
     struct Page *page = Get_Page((ulong_t) paddr);
     KASSERT(!(page->flags & PAGE_PAGEABLE));    /* Page must be locked! */
-    TODO_P(PROJECT_VIRTUAL_MEMORY_B, "Read page data from paging file");
+    int i;
+    for (i = 0; i < SECTORS_PER_PAGE; i++) {
+        int blockNum = pagefileIndex * SECTORS_PER_PAGE + i + (pagingDevice->startSector);
+        Block_Read(pagingDevice->dev, blockNum, paddr + i * SECTOR_SIZE);
+    }
+    Free_Space_On_Paging_File(pagefileIndex);
 }
 
 
