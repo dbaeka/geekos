@@ -76,6 +76,7 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     memset(context->memory, '\0', size);
 
     context->size = size;
+    context->fileCount = 0;
 
     /* Allocate an LDT descriptor for the user context */
     context->ldtDescriptor = Allocate_Segment_Descriptor();

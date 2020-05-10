@@ -33,6 +33,7 @@
 #include <geekos/pipe.h>
 #include <geekos/mem.h>
 #include <geekos/smp.h>
+#include <geekos/fileio.h>
 
 extern Spin_Lock_t kthreadLock;
 
@@ -50,18 +51,18 @@ extern int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen,
     char *str;
 
     /* Ensure that string isn't too long. */
-    if(len > maxLen)
+    if (len > maxLen)
         return EINVALID;
 
     /* Allocate space for the string. */
-    str = (char *)Malloc(len + 1);
-    if(str == 0) {
+    str = (char *) Malloc(len + 1);
+    if (str == 0) {
         rc = ENOMEM;
         goto done;
     }
 
     /* Copy data from user space. */
-    if(!Copy_From_User(str, uaddr, len)) {
+    if (!Copy_From_User(str, uaddr, len)) {
         rc = EINVALID;
         Free(str);
         goto done;
@@ -71,8 +72,19 @@ extern int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen,
     /* Success! */
     *pStr = str;
 
-  done:
+    done:
     return rc;
+}
+
+uint_t checkNullTerminated(const char *str, size_t length) {
+    int retval = 1;
+    size_t i;
+    for (i = 0; i < length; i++)
+        if (str[i] == '\0') {
+            retval = 0;
+            break;
+        }
+    return retval;
 }
 
 /*
@@ -86,7 +98,7 @@ extern int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen,
  *   always returns the value 0 (zero)
  */
 static int Sys_Null(struct Interrupt_State *state
-                    __attribute__ ((unused))) {
+__attribute__ ((unused))) {
     return 0;
 }
 
@@ -110,7 +122,7 @@ static int Sys_Exit(struct Interrupt_State *state) {
 */
 extern void Hardware_Shutdown();        /* is in keyboard.c for odd reasons */
 static int Sys_ShutDown(struct Interrupt_State *state) {
-    (void)state;                /* unused */
+    (void) state;                /* unused */
     Print("------------------- THE END ------------------\n");
     Hardware_Shutdown();
     /* We will never get here. */
@@ -134,11 +146,11 @@ static int Sys_PrintString(struct Interrupt_State *state) {
 
     KASSERT(Interrupts_Enabled());
 
-    if(length > 0) {
+    if (length > 0) {
         /* Copy string into kernel. */
-        if((rc =
-            Copy_User_String(state->ebx, length, 1024,
-                             (char **)&buf)) != 0)
+        if ((rc =
+                     Copy_User_String(state->ebx, length, 1024,
+                                      (char **) &buf)) != 0)
             goto done;
 
         /* in reality, one wouldn't abort on this sort of thing.  but we do that
@@ -146,7 +158,7 @@ static int Sys_PrintString(struct Interrupt_State *state) {
         /* length is greater than zero, so someone thought there was a string here,
            but the first character is null, so they were either wrong or something 
            poor occurred. */
-        if(!buf[0]) {
+        if (!buf[0]) {
             Dump_Interrupt_State(state);
             KASSERT0(buf[0],
                      "Attempted to print a null string; this is likely a memory error.");
@@ -162,8 +174,8 @@ static int Sys_PrintString(struct Interrupt_State *state) {
 
     }
 
-  done:
-    if(buf != 0)
+    done:
+    if (buf != 0)
         Free(buf);
 
     return rc;
@@ -181,7 +193,7 @@ static int Sys_GetKey(struct Interrupt_State *state) {
     TODO_P(PROJECT_SERIAL,
            "Get a key from the serial console if appropriate");
 
-    (void)state;                /* unused */
+    (void) state;                /* unused */
     return Wait_For_Key();
 }
 
@@ -207,8 +219,8 @@ static int Sys_GetCursor(struct Interrupt_State *state) {
     int row, col, ret;
     TODO_P(PROJECT_SERIAL, "fail if invoked when serial port is in use.");
     Get_Cursor(&row, &col);
-    if(!Copy_To_User(state->ebx, &row, sizeof(int)) ||
-       !Copy_To_User(state->ecx, &col, sizeof(int))) {
+    if (!Copy_To_User(state->ebx, &row, sizeof(int)) ||
+        !Copy_To_User(state->ecx, &col, sizeof(int))) {
         ret = -1;
     } else {
         ret = 0;
@@ -245,11 +257,11 @@ static int Sys_Spawn(struct Interrupt_State *state) {
     struct Kernel_Thread *process = NULL;
 
     /* Copy program name and command from user space. */
-    if((rc =
-        Copy_User_String(state->ebx, state->ecx, VFS_MAX_PATH_LEN,
-                         &program)) != 0 ||
-       (rc =
-        Copy_User_String(state->edx, state->esi, 1023, &command)) != 0)
+    if ((rc =
+                 Copy_User_String(state->ebx, state->ecx, VFS_MAX_PATH_LEN,
+                                  &program)) != 0 ||
+        (rc =
+                 Copy_User_String(state->edx, state->esi, 1023, &command)) != 0)
         goto done;
 
     /*
@@ -258,15 +270,15 @@ static int Sys_Spawn(struct Interrupt_State *state) {
      */
     rc = Spawn(program, command, &process, state->edi);
 
-    if(rc == 0) {
+    if (rc == 0) {
         KASSERT(process != 0);
         rc = process->pid;
     }
 
-  done:
-    if(program != 0)
+    done:
+    if (program != 0)
         Free(program);
-    if(command != 0)
+    if (command != 0)
         Free(command);
 
     return rc;
@@ -284,19 +296,19 @@ static int Sys_Wait(struct Interrupt_State *state) {
     struct Kernel_Thread *kthread;
 
     kthread = Lookup_Thread(state->ebx, 0);
-    if(kthread == 0) {
+    if (kthread == 0) {
         // can't find the process id passed
         exitCode = EINVALID;
         goto finish;
     }
 
-    if(kthread->detached) {
+    if (kthread->detached) {
         // can't wait on a detached process
         exitCode = EINVALID;
         goto finish;
     }
     exitCode = Join(kthread);
-  finish:
+    finish:
     return exitCode;
 }
 
@@ -307,7 +319,7 @@ static int Sys_Wait(struct Interrupt_State *state) {
  * Returns: the pid of the current thread
  */
 static int Sys_GetPID(struct Interrupt_State *state) {
-    (void)state;                /* unused */
+    (void) state;                /* unused */
     return CURRENT_THREAD->pid;
 }
 
@@ -416,7 +428,7 @@ static int Sys_SetSchedulingPolicy(struct Interrupt_State *state) {
  * Returns: value of the g_numTicks global variable
  */
 static int Sys_GetTimeOfDay(struct Interrupt_State *state
-                            __attribute__ ((unused))) {
+__attribute__ ((unused))) {
     return g_numTicks;
 }
 
@@ -435,43 +447,51 @@ static int Sys_Mount(struct Interrupt_State *state) {
     struct VFS_Mount_Request *args = 0;
 
     /* Allocate space for VFS_Mount_Request struct. */
-    if((args =
-        (struct VFS_Mount_Request *)
-        Malloc(sizeof(struct VFS_Mount_Request))) == 0) {
+    if ((args =
+                 (struct VFS_Mount_Request *)
+                         Malloc(sizeof(struct VFS_Mount_Request))) == 0) {
         rc = ENOMEM;
         goto done;
     }
 
     /* Copy the mount arguments structure from user space. */
-    if(!Copy_From_User
-       (args, state->ebx, sizeof(struct VFS_Mount_Request))) {
+    if (!Copy_From_User
+            (args, state->ebx, sizeof(struct VFS_Mount_Request))) {
         rc = EINVALID;
         goto done;
     }
-
     /*
      * Hint: use devname, prefix, and fstype from the args structure
      * and invoke the Mount() VFS function.  You will need to check
      * to make sure they are correctly nul-terminated.
      */
-    TODO_P(PROJECT_FS, "Mount system call");
-    rc = EUNSUPPORTED;
-  done:
-    if(args != 0)
+    if (strncmp(args->fstype, "gfs3", 4) != 0) {
+        rc = EINVALIDFS;
+        goto done;
+    }
+    if (!Interrupts_Enabled()) {
+        Enable_Interrupts();
+        rc = Mount(args->devname, args->prefix, args->fstype);
+        Disable_Interrupts();
+    } else
+        rc = Mount(args->devname, args->prefix, args->fstype);
+
+    done:
+    if (args != 0)
         Free(args);
     return rc;
 }
 
 static int get_path_from_registers(uint_t addr, uint_t length,
                                    char **pPath) {
-    if(length > 1024) {
+    if (length > 1024) {
         return ENAMETOOLONG;
     }
     *pPath = Malloc(length + 1);
-    if(!*pPath) {
+    if (!*pPath) {
         return ENOMEM;
     }
-    if(!Copy_From_User(*pPath, addr, length)) {
+    if (!Copy_From_User(*pPath, addr, length)) {
         Free(*pPath);
         return EINVALID;
     }
@@ -481,11 +501,11 @@ static int get_path_from_registers(uint_t addr, uint_t length,
 
 static int next_descriptor() {
     int descriptor;
-    for(descriptor = 0;
-        descriptor < USER_MAX_FILES &&
-        CURRENT_THREAD->userContext->file_descriptor_table[descriptor] !=
-        0; descriptor++) ;
-    if(descriptor == USER_MAX_FILES) {
+    for (descriptor = 0;
+         descriptor < USER_MAX_FILES &&
+         CURRENT_THREAD->userContext->file_descriptor_table[descriptor] !=
+         0; descriptor++);
+    if (descriptor == USER_MAX_FILES) {
         return EMFILE;
     }
     return descriptor;
@@ -493,9 +513,9 @@ static int next_descriptor() {
 
 static int add_file_to_descriptor_table(struct File *file) {
     int descriptor = next_descriptor();
-    if(descriptor >= 0) {
+    if (descriptor >= 0) {
         CURRENT_THREAD->userContext->file_descriptor_table[descriptor] =
-            file;
+                file;
     }
     return descriptor;
 }
@@ -516,12 +536,12 @@ static int Sys_Open(struct Interrupt_State *state) {
     int rc = 0;
 
     rc = get_path_from_registers(state->ebx, state->ecx, &path);
-    if(rc != 0) {
+    if (rc != 0) {
         goto leave;
     }
 
     rc = next_descriptor();
-    if(rc < 0) {
+    if (rc < 0) {
         Free(path);
         goto leave;
     }
@@ -529,8 +549,8 @@ static int Sys_Open(struct Interrupt_State *state) {
     rc = Open(path, state->edx, &file);
     Free(path);
 
-  leave:
-    if(rc >= 0) {
+    leave:
+    if (rc >= 0) {
         return add_file_to_descriptor_table(file);
     } else {
         return rc;
@@ -547,8 +567,31 @@ static int Sys_Open(struct Interrupt_State *state) {
  *   or an error code (< 0) if unsuccessful
  */
 static int Sys_OpenDirectory(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FS, "Open directory system call");
-    return EUNSUPPORTED;
+    char *path;
+    struct File *file = 0;
+    int rc = 0;
+
+    rc = get_path_from_registers(state->ebx, state->ecx, &path);
+    if (rc != 0) {
+        goto leave;
+    }
+
+    rc = next_descriptor();
+    if (rc < 0) {
+        Free(path);
+        goto leave;
+    }
+
+
+    rc = Open_Directory(path, &file);
+    Free(path);
+
+    leave:
+    if (rc >= 0) {
+        return add_file_to_descriptor_table(file);
+    } else {
+        return rc;
+    }
 }
 
 /*
@@ -559,15 +602,16 @@ static int Sys_OpenDirectory(struct Interrupt_State *state) {
  */
 static int Sys_Close(struct Interrupt_State *state) {
     /* where is the file table? */
-    if(state->ebx >= USER_MAX_FILES) {
+    if (state->ebx >= USER_MAX_FILES) {
         Print("unable to close fd index %d, out of range.\n", state->ebx);
         return EINVALID;
     }
-    if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
+    if (CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
         Close(CURRENT_THREAD->userContext->
-              file_descriptor_table[state->ebx]);
+                file_descriptor_table[state->ebx]);
         CURRENT_THREAD->userContext->file_descriptor_table[state->ebx] =
-            0;
+                0;
+        CURRENT_THREAD->userContext->fileCount--;
         return 0;
     } else {
         // Print("unable to close fd index %d, nothing there.\n", state->ebx);
@@ -647,21 +691,21 @@ static int Sys_SymLink(struct Interrupt_State *state) {
 static int Sys_Read(struct Interrupt_State *state) {
     int bytes_read = 0;
 
-    if(state->ebx >= USER_MAX_FILES) {
+    if (state->ebx >= USER_MAX_FILES) {
         return EINVALID;
     }
-    if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
+    if (CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
         void *data_buffer;
         data_buffer = Malloc(state->edx);
-        if(!data_buffer) {
+        if (!data_buffer) {
             return ENOMEM;
         }
         bytes_read =
-            Read(CURRENT_THREAD->userContext->
-                 file_descriptor_table[state->ebx], data_buffer,
-                 state->edx);
-        if(bytes_read > 0) {
-            if(!Copy_To_User(state->ecx, data_buffer, bytes_read)) {
+                Read(CURRENT_THREAD->userContext->
+                             file_descriptor_table[state->ebx], data_buffer,
+                     state->edx);
+        if (bytes_read > 0) {
+            if (!Copy_To_User(state->ecx, data_buffer, bytes_read)) {
                 bytes_read = EINVALID;
             }
         }
@@ -680,8 +724,29 @@ static int Sys_Read(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_ReadEntry(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FS, "ReadEntry system call");
-    return EUNSUPPORTED;
+    int rc;
+    struct VFS_Dir_Entry *dir_entry = (struct VFS_Dir_Entry *) Malloc(sizeof(struct VFS_Dir_Entry));
+    if (dir_entry == 0) {
+        rc = ENOMEM;
+        goto exit;
+    }
+
+    struct File *file = CURRENT_THREAD->userContext->file_descriptor_table[state->ebx];
+    if (file == 0) {
+        rc = ENOTFOUND;
+        goto memfail;
+    }
+
+    rc = Read_Entry(file, dir_entry);
+    if (rc != 0)
+        goto memfail;
+
+    Copy_To_User(state->ecx, dir_entry, sizeof(struct VFS_Dir_Entry));
+
+    memfail:
+    Free(dir_entry);
+    exit:
+    return rc;
 }
 
 /*
@@ -697,22 +762,22 @@ static int Sys_ReadEntry(struct Interrupt_State *state) {
 static int Sys_Write(struct Interrupt_State *state) {
     int bytes_written = 0;
 
-    if(state->ebx >= USER_MAX_FILES) {
+    if (state->ebx >= USER_MAX_FILES) {
         return EINVALID;
     }
-    if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
+    if (CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
         void *data_buffer = Malloc(state->edx);
-        if(!data_buffer) {
+        if (!data_buffer) {
             return ENOMEM;
         }
-        if(!Copy_From_User(data_buffer, state->ecx, state->edx)) {
+        if (!Copy_From_User(data_buffer, state->ecx, state->edx)) {
             Free(data_buffer);
             return EINVALID;
         }
         bytes_written =
-            Write(CURRENT_THREAD->userContext->
-                  file_descriptor_table[state->ebx], data_buffer,
-                  state->edx);
+                Write(CURRENT_THREAD->userContext->
+                              file_descriptor_table[state->ebx], data_buffer,
+                      state->edx);
         Free(data_buffer);
         return bytes_written;
     } else {
@@ -730,8 +795,27 @@ static int Sys_Write(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_Stat(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FS, "Stat system call");
-    return EUNSUPPORTED;
+    struct VFS_File_Stat *fileStat = (struct VFS_File_Stat *) Malloc(sizeof(struct VFS_File_Stat));
+    if (fileStat == 0) {
+        return ENOMEM;
+    }
+
+    char *path;
+    int rc;
+    rc = get_path_from_registers(state->ebx, state->ecx, &path);
+    if (rc != 0) {
+        goto leave;
+    }
+
+    rc = Stat(path, fileStat);
+
+    Copy_To_User(state->edx, fileStat, sizeof(struct VFS_File_Stat));
+
+
+    leave:
+    Free(path);
+    Free(fileStat);
+    return rc;
 }
 
 /*
@@ -743,8 +827,28 @@ static int Sys_Stat(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_FStat(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FS, "FStat system call");
-    return EUNSUPPORTED;
+    if (state->ebx >= USER_MAX_FILES) {
+        return EINVALID;
+    }
+    struct File *file = CURRENT_THREAD->userContext->file_descriptor_table[state->ebx];
+    if (file != 0) {
+        struct VFS_File_Stat *fileStat = (struct VFS_File_Stat *) Malloc(sizeof(struct VFS_File_Stat));
+        if (fileStat == 0) {
+            return ENOMEM;
+        }
+
+        int rc = FStat(file, fileStat);
+
+        if (!Copy_To_User(state->ecx, fileStat, sizeof(struct VFS_File_Stat))) {
+            Free(fileStat);
+            return ENOMEM;
+        }
+
+        Free(fileStat);
+        return rc;
+    } else {
+        return ENOTFOUND;
+    }
 }
 
 /*
@@ -756,8 +860,16 @@ static int Sys_FStat(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_Seek(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FS, "Seek system call");
-    return EUNSUPPORTED;
+
+    if (state->ebx >= USER_MAX_FILES) {
+        return EINVALID;
+    }
+    struct File *file = CURRENT_THREAD->userContext->file_descriptor_table[state->ebx];
+    if (file != 0) {
+        int rc = Seek(file, state->ecx);
+        return rc;
+    } else
+        return EINVALID;
 }
 
 /*
@@ -780,7 +892,7 @@ static int Sys_CreateDir(struct Interrupt_State *state) {
  */
 static int Sys_Sync(struct Interrupt_State *state) {
     TODO_P(PROJECT_FS, "Sync system call");
-    (void)state;                /* unused */
+    (void) state;                /* unused */
     return EUNSUPPORTED;
 }
 
@@ -798,20 +910,20 @@ static int Sys_Format(struct Interrupt_State *state) {
     int rc = 0;
     char *devname = 0, *fstype = 0;
 
-    if((rc =
-        Copy_User_String(state->ebx, state->ecx, BLOCKDEV_MAX_NAME_LEN,
-                         &devname)) != 0 ||
-       (rc =
-        Copy_User_String(state->edx, state->esi, VFS_MAX_FS_NAME_LEN,
-                         &fstype)) != 0)
+    if ((rc =
+                 Copy_User_String(state->ebx, state->ecx, BLOCKDEV_MAX_NAME_LEN,
+                                  &devname)) != 0 ||
+        (rc =
+                 Copy_User_String(state->edx, state->esi, VFS_MAX_FS_NAME_LEN,
+                                  &fstype)) != 0)
         goto done;
 
     rc = Format(devname, fstype);
 
-  done:
-    if(devname != 0)
+    done:
+    if (devname != 0)
         Free(devname);
-    if(fstype != 0)
+    if (fstype != 0)
         Free(fstype);
     return rc;
 }
@@ -851,7 +963,7 @@ static int Sys_WriteBlock(struct Interrupt_State *state) {
 
 static int Sys_GetUid(struct Interrupt_State *state) {
     TODO_P(PROJECT_USER, "Sys_GetUid system call");
-    (void)state;                /* unused */
+    (void) state;                /* unused */
     return EUNSUPPORTED;
 }
 
@@ -871,6 +983,7 @@ static int Sys_SetAcl(struct Interrupt_State *state) {
 }
 
 extern void SB16_Play_File(const char *filename);
+
 static int Sys_PlaySoundFile(struct Interrupt_State *state) {
     TODO_P(PROJECT_SOUND, "PlaySoundFile system call");
     return 0;
@@ -886,7 +999,6 @@ static int Sys_Pipe(struct Interrupt_State *state) {
     TODO_P(PROJECT_PIPE, "Pipe system call");
     return EUNSUPPORTED;
 }
-
 
 
 static int Sys_Fork(struct Interrupt_State *state) {
@@ -915,7 +1027,7 @@ static int Sys_Execl(struct Interrupt_State *state) {
  */
 
 static int Sys_Diagnostic(struct Interrupt_State *state) {
-    (void)state;                /* warning appeasement */
+    (void) state;                /* warning appeasement */
     Dump_Blockdev_Stats();
     return 0;
 }
@@ -935,7 +1047,7 @@ static int Sys_Disk_Properties(struct Interrupt_State *state) {
     int rc;
     Copy_User_String(state->ebx, state->ecx, 100, &path);
     rc = Disk_Properties(path, &block_size, &blocks_per_disk);
-    if(rc == 0) {
+    if (rc == 0) {
         Copy_To_User(state->edx, &block_size, sizeof(unsigned int));
         Copy_To_User(state->esi, &blocks_per_disk, sizeof(unsigned int));
     }
@@ -1024,99 +1136,99 @@ static int Sys_Sbrk(struct Interrupt_State *state) {
  * Global table of system call handler functions.
  */
 const Syscall g_syscallTable[] = {
-    Sys_Null,
-    Sys_Exit,
-    Sys_PrintString,
-    Sys_GetKey,
-    Sys_SetAttr,
-    Sys_GetCursor,
-    Sys_PutCursor,
-    Sys_Spawn,
-    Sys_Wait,
-    Sys_GetPID,
-    Sys_Kill,
-    Sys_PS,
-    Sys_Signal,
-    Sys_RegDeliver,
-    Sys_ReturnSignal,
-    Sys_WaitNoPID,
-    /* Scheduling and semaphore system calls. */
-    Sys_SetSchedulingPolicy,
-    Sys_GetTimeOfDay,
-    Sys_Open_Semaphore,
-    Sys_P,
-    Sys_V,
-    Sys_Close_Semaphore,
-    /* File I/O system calls. */
-    Sys_Mount,
-    Sys_Open,
-    Sys_OpenDirectory,
-    Sys_Close,
-    Sys_Delete,
-    Sys_Read,
-    Sys_ReadEntry,
-    Sys_Write,
-    Sys_Stat,
-    Sys_FStat,
-    Sys_Seek,
-    Sys_CreateDir,
-    Sys_Sync,
-    Sys_Format,
-    Sys_ShutDown,
-    Sys_ReadBlock,
-    Sys_WriteBlock,
-    /* Networking calls */
-    Sys_EthPacketSend,
-    Sys_EthPacketReceive,
-    Sys_Arp,
-    Sys_RouteAdd,
-    Sys_RouteDel,
-    Sys_RouteGet,
-    Sys_IPConfigure,
-    Sys_IPGet,
-    Sys_IPSend,
-    /* Socket API */
-    Sys_Socket,
-    Sys_Bind,
-    Sys_Listen,
-    Sys_Accept,
-    Sys_Connect,
-    Sys_Send,
-    Sys_Receive,
-    Sys_SendTo,
-    Sys_ReceiveFrom,
-    Sys_CloseSocket,
-    /* User related calls */
-    Sys_Limit,
-    Sys_GetUid,
-    Sys_SetSetUid,
-    Sys_SetEffectiveUid,
-    Sys_SetAcl,
-    /* sound */
-    Sys_PlaySoundFile,
-    /* unix interface */
-    Sys_Pipe,
-    Sys_Fork,
-    Sys_Execl,
-    /* diagnostics and debugging */
-    Sys_Diagnostic,
-    Sys_Disk_Properties,
-    /* SMP functions */
-    Sys_Set_Affinity,
-    Sys_Get_Affinity,
-    Sys_Clone,
-    /* memory mapped files */
-    Sys_Mmap,
-    Sys_Munmap,
-    Sys_Alarm,
-    Sys_Rename,
-    Sys_Link,
-    Sys_SymLink,
-    Sys_Sbrk
+        Sys_Null,
+        Sys_Exit,
+        Sys_PrintString,
+        Sys_GetKey,
+        Sys_SetAttr,
+        Sys_GetCursor,
+        Sys_PutCursor,
+        Sys_Spawn,
+        Sys_Wait,
+        Sys_GetPID,
+        Sys_Kill,
+        Sys_PS,
+        Sys_Signal,
+        Sys_RegDeliver,
+        Sys_ReturnSignal,
+        Sys_WaitNoPID,
+        /* Scheduling and semaphore system calls. */
+        Sys_SetSchedulingPolicy,
+        Sys_GetTimeOfDay,
+        Sys_Open_Semaphore,
+        Sys_P,
+        Sys_V,
+        Sys_Close_Semaphore,
+        /* File I/O system calls. */
+        Sys_Mount,
+        Sys_Open,
+        Sys_OpenDirectory,
+        Sys_Close,
+        Sys_Delete,
+        Sys_Read,
+        Sys_ReadEntry,
+        Sys_Write,
+        Sys_Stat,
+        Sys_FStat,
+        Sys_Seek,
+        Sys_CreateDir,
+        Sys_Sync,
+        Sys_Format,
+        Sys_ShutDown,
+        Sys_ReadBlock,
+        Sys_WriteBlock,
+        /* Networking calls */
+        Sys_EthPacketSend,
+        Sys_EthPacketReceive,
+        Sys_Arp,
+        Sys_RouteAdd,
+        Sys_RouteDel,
+        Sys_RouteGet,
+        Sys_IPConfigure,
+        Sys_IPGet,
+        Sys_IPSend,
+        /* Socket API */
+        Sys_Socket,
+        Sys_Bind,
+        Sys_Listen,
+        Sys_Accept,
+        Sys_Connect,
+        Sys_Send,
+        Sys_Receive,
+        Sys_SendTo,
+        Sys_ReceiveFrom,
+        Sys_CloseSocket,
+        /* User related calls */
+        Sys_Limit,
+        Sys_GetUid,
+        Sys_SetSetUid,
+        Sys_SetEffectiveUid,
+        Sys_SetAcl,
+        /* sound */
+        Sys_PlaySoundFile,
+        /* unix interface */
+        Sys_Pipe,
+        Sys_Fork,
+        Sys_Execl,
+        /* diagnostics and debugging */
+        Sys_Diagnostic,
+        Sys_Disk_Properties,
+        /* SMP functions */
+        Sys_Set_Affinity,
+        Sys_Get_Affinity,
+        Sys_Clone,
+        /* memory mapped files */
+        Sys_Mmap,
+        Sys_Munmap,
+        Sys_Alarm,
+        Sys_Rename,
+        Sys_Link,
+        Sys_SymLink,
+        Sys_Sbrk
 };
 
 /*
  * Number of system calls implemented.
  */
 const unsigned int g_numSyscalls =
-    sizeof(g_syscallTable) / sizeof(Syscall);
+        sizeof(g_syscallTable) / sizeof(Syscall);

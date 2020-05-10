@@ -81,7 +81,7 @@ static struct Paging_Device *s_pagingDevice;
  *   pSuffix - stores the pointer to the suffix part of path
  * Returns: true if path is valid, false if not
  */
-static bool Unpack_Path(const char *path, char *prefix,
+bool Unpack_Path(const char *path, char *prefix,
                         const char **pSuffix) {
     char *slash;
     size_t pfxLen;

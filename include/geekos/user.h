@@ -86,6 +86,8 @@ struct User_Context {
     /*! Open files. */
     struct File *file_descriptor_table[USER_MAX_FILES];
 
+    ulong_t fileCount;
+
     /* Code entry point */
     ulong_t entryAddr;
 

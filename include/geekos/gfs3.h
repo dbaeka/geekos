@@ -26,6 +26,12 @@ typedef unsigned int gfs3_inodenum;     /* For inode numbers */
 #define GFS3_FILE 2
 
 #define GFS3_MAGIC 0x47465333
+#define GFS3_VERSION 0x00000100
+
+#define GFS3_MAX_PATH_LEN VFS_MAX_PATH_LEN
+
+#define GFS3_BLOCK_SIZE SECTOR_SIZE
+
 
 #define GFS3_INUM_ROOT   1
 #define GFS3_INUM_INUSE_BITS 2
@@ -70,5 +76,10 @@ struct gfs3_dirent {
 
 void Init_GFS3(void);
 
+#define GFS3_INODE_SIZE 32
+#define GFS3_INODES_PER_BLOCK (GFS3_BLOCK_SIZE/GFS3_INODE_SIZE)
+
+#define INODE_BLOCKNUM(inodenum) ((gfs3_blocknum) (inodenum/GFS3_INODES_PER_BLOCK)+1)
+#define INODE_OFFSET(inodenum) ((inodenum % GFS3_INODES_PER_BLOCK)*GFS3_INODE_SIZE)
 
 #endif
